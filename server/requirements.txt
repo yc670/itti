@@ -19,3 +19,4 @@ alembic==1.13.3
 Flask-Limiter==3.8.0
 Flask-Compress==1.24
 sentry-sdk[flask]==2.14.0
+

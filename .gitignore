@@ -42,4 +42,4 @@ server/app.db/
 # report" case too (server/report_uploads/, previously listed alone).
 server/uploads/
 server/report_uploads/
-server/fellow_uploads/
+server/fellow_uploads/server/app.db
