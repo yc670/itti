@@ -44,6 +44,36 @@ services:
       - key: STRIPE_WEBHOOK_SECRET
         type: SECRET
         value: <PLACEHOLDER, if using donations>
+      # Uploaded content (fellow photos, report files/cover images) MUST
+      # NOT use the default STORAGE_BACKEND=local here. App Platform
+      # rebuilds this service's container from a fresh image on every
+      # deploy (deploy_on_push: true above), so anything written to
+      # local disk after the container starts - i.e. every fellow photo
+      # or report uploaded through the live admin/publisher UI - is gone
+      # the next time it redeploys, while the database still points at
+      # it. The symptom is a broken image and, until storage.py's
+      # get_file_response() was made to 404 cleanly on a missing file, a
+      # raw 500 "internal server error" from GET /api/fellows/<id>/photo
+      # (and the equivalent report file/image routes).
+      #
+      # Fix: point this at an S3-compatible bucket instead - the same
+      # DigitalOcean Spaces mechanism used for the frontend bucket
+      # below, but a separate (private) bucket, since these files don't
+      # need to be public - get_file_response() serves them via a
+      # short-lived presigned URL either way. See docs/DEPLOYMENT.md,
+      # "Persistent storage for uploads" for one-time setup.
+      - key: STORAGE_BACKEND
+        value: s3
+      - key: STORAGE_S3_BUCKET
+        value: <PLACEHOLDER - e.g. itti-uploads>
+      - key: STORAGE_S3_ENDPOINT_URL
+        value: <PLACEHOLDER - e.g. https://nyc3.digitaloceanspaces.com>
+      - key: AWS_ACCESS_KEY_ID
+        type: SECRET
+        value: <PLACEHOLDER - Spaces access key, same one used for the frontend bucket or a separate pair>
+      - key: AWS_SECRET_ACCESS_KEY
+        type: SECRET
+        value: <PLACEHOLDER - Spaces secret key>
 
 # Frontend is NOT built by App Platform. It's built on GitHub Actions
 # (.github/workflows/deploy-frontend.yml) and synced straight to a

@@ -6,7 +6,13 @@
 
 .reports-content {
   flex: 1;
-  padding: 56px 32px 80px;
+  /* Top/side padding matched to .country-profiles-page (48px top,
+     24px sides) so the page header starts at the same vertical
+     position and horizontal inset as Country Profiles - the reports
+     grid itself still needs more horizontal room than a single-column
+     list, so max-width stays 1080px (matches Observatory/PeerReview)
+     rather than also being narrowed to Country Profiles' 780px. */
+  padding: 48px 24px 80px;
   max-width: 1080px;
   margin: 0 auto;
   width: 100%;
@@ -18,11 +24,13 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  margin-bottom: 32px;
+  margin-bottom: 20px;
 }
 .reports-header h1 {
-  margin: 0 0 6px 0;
-  font-size: 32px;
+  /* Matched to .country-profiles-heading (30px, 0 0 8px 0) rather than
+     the previous 32px/6px - same reasoning as .reports-content above. */
+  margin: 0 0 8px 0;
+  font-size: 30px;
   color: var(--text-hi);
 }
 .reports-header p {
@@ -478,53 +486,50 @@
 /* Submit/cancel now use the sitewide .btn/.btn-primary/.btn-secondary
    utility classes (see App.css) rather than their own definitions. */
 
-/* ---------- Inline report viewer (PDF/DOCX reader) ---------- */
+/* ---------- Report view page (/reports/:id) ---------- */
+/* Replaced the old inline-modal viewer (ReportViewerModal, an overlay
+   opened on top of /reports) - see the comment atop ReportView.jsx for
+   why: a real page has its own URL, works with the browser back
+   button, and can be shared/bookmarked, none of which a same-page
+   modal could do. .report-viewer-body/-pdf-frame/-status/-docx below
+   are carried over unchanged, since the actual PDF/DOCX rendering
+   didn't need to change, only the chrome around it. The "back to
+   Reports" link itself is .page-back-link (see App.css) - shared with
+   ReportPublish.jsx/PeerReview.jsx/PeerReviewMine.jsx rather than
+   defined again per page. */
 
-.report-viewer-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(4, 8, 14, 0.6);
-  backdrop-filter: blur(2px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 60;
-  padding: 24px;
-  box-sizing: border-box;
-}
-
-.report-viewer-modal {
+.report-view-page {
   background: var(--bg-panel);
   border: 1px solid var(--line);
   border-radius: 16px;
-  width: min(900px, 100%);
-  height: min(85vh, 1000px);
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.18);
 }
 
-.report-viewer-header {
+.report-view-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  padding: 16px 20px;
+  gap: 16px;
+  padding: 20px 24px;
   border-bottom: 1px solid var(--line);
-  flex-shrink: 0;
 }
-.report-viewer-header h3 {
-  margin: 0;
-  font-size: 15px;
+.report-view-header-text {
+  min-width: 0;
+}
+.report-view-title {
+  margin: 0 0 4px 0;
+  font-size: 20px;
   font-weight: 600;
   color: var(--text-hi);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
+}
+.report-view-author {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-mid);
 }
 
-.report-viewer-header-actions {
+.report-view-header-actions {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -541,30 +546,14 @@
   text-decoration: underline;
 }
 
-.report-viewer-close {
-  background: transparent;
-  border: none;
-  color: var(--text-mid);
-  font-size: 22px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0;
-  transition: color 0.15s ease;
-}
-.report-viewer-close:hover {
-  color: var(--text-hi);
-}
-
-.report-viewer-body {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
+.report-view-body {
+  min-height: 70vh;
   background: var(--bg-deep);
 }
 
 .report-viewer-pdf-frame {
   width: 100%;
-  height: 100%;
+  height: 80vh;
   border: none;
   display: block;
 }
@@ -628,12 +617,7 @@
   .reports-section-tab {
     flex-shrink: 0;
   }
-  .report-viewer-overlay {
-    padding: 0;
-  }
-  .report-viewer-modal {
-    width: 100%;
-    height: 100%;
-    border-radius: 0;
+  .report-view-header {
+    flex-direction: column;
   }
 }

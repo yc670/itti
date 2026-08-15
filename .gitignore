@@ -33,6 +33,9 @@ server/report_uploads/
 
 # local test database
 server/app.db/
+server/app.db
+
+
 
 # Uploaded content (local storage backend's on-disk save location - see
 # storage.py). Real, potentially large user-uploaded files don't belong

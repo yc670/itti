@@ -23,9 +23,9 @@ function formatFileSize(bytes) {
  * rendering a logged-out visitor's card) and the star doesn't render at
  * all, rather than rendering a star that can't do anything.
  *
- * onRead: opens the inline PDF/DOCX viewer for this report (see
- * ReportViewerModal, rendered by the parent Reports page). Always
- * shown - unlike the star, reading a report needs no login.
+ * onRead: navigates to this report's own page (/reports/:id, see
+ * ReportView.jsx). Always shown - unlike the star, reading a report
+ * needs no login.
  *
  * Dates: created_at and updated_at are both always shown (per the
  * report-panel spec), but updated_at is the visually prominent one -

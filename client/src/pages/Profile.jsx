@@ -378,10 +378,8 @@ export default function Profile() {
                           canManage={false}
                           isFavorited
                           onToggleFavorite={handleUnfavoriteReport}
+                          onRead={(r) => navigate(`/reports/${r.id}`)}
                         />
-                        <Link to={`/reports?highlight=${report.id}`} className="profile-favorite-report-link">
-                          View in Reports &rarr;
-                        </Link>
                       </div>
                     ))}
                   </div>

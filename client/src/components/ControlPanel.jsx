@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Reveal from './Reveal.jsx';
 import FellowsControl from './FellowsControl.jsx';
 import AccessLevelPanel from './AccessLevelPanel.jsx';
+import ReportCategoryControl from './ReportCategoryControl.jsx';
 import '../styles/Control.css';
 
 const OBSERVATORY_KIND_OPTIONS = [
@@ -304,6 +305,10 @@ export default function ControlPanel() {
       </Reveal>
 
       <Reveal delay={180}>
+        <ReportCategoryControl />
+      </Reveal>
+
+      <Reveal delay={240}>
         <AccessLevelPanel />
       </Reveal>
     </>

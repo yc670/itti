@@ -374,6 +374,71 @@ def get_reports_by_uploader(user_id, include_hidden=False):
         session.close()
 
 
+def get_all_reports(search=None, category=None, limit=DEFAULT_PAGE_SIZE, offset=0):
+    """
+    Fetch a page of reports across EVERY review_status (pending,
+    changes_requested, published, rejected), newest first - unlike
+    every other list_* function above, which is scoped to one review
+    stage for a specific page (public Reports page, Peer Review queue,
+    etc). This backs the admin Control tab's "recategorize an existing
+    report" tool, where an admin needs to find and fix a report
+    regardless of what stage it's in - the category bug this exists to
+    correct (see upload_report()'s history) affected reports at every
+    review status equally, since it happened at creation time.
+
+    search, if given, does a case-insensitive substring match against
+    title only (not description - description matches would surface
+    too many irrelevant reports for what's meant to be a quick
+    find-by-name tool). category, if given, filters to exactly that
+    section - lets an admin browse "everything currently miscategorized
+    as National Trauma Assessment" directly rather than paging through
+    all reports. include_hidden is intentionally NOT a parameter here
+    (unlike the other get_*_reports functions) - always includes
+    hidden reports, since a hidden report can still have the wrong
+    category and an admin fixing categories shouldn't have hidden ones
+    invisible to them. Returns (reports, total).
+    """
+    limit = clamp_limit(limit)
+    offset = clamp_offset(offset)
+    session = Session()
+    try:
+        query = session.query(Report)
+        if search:
+            query = query.filter(Report.title.ilike(f"%{search}%"))
+        if category:
+            query = query.filter(Report.category == category)
+        total = query.count()
+        reports = query.order_by(Report.created_at.desc()).offset(offset).limit(limit).all()
+        return reports, total
+    finally:
+        session.close()
+
+
+def set_report_category(report_id, category):
+    """
+    Updates just a report's category, independent of its review status
+    or version - unlike resubmit_report(), this doesn't touch
+    review_status/version/file at all, since recategorizing isn't a
+    content change and shouldn't send an already-published report back
+    through peer review. Caller (the route) is responsible for
+    validating `category` is one of REPORT_CATEGORIES before calling
+    this - this function trusts its input, same as create_report()
+    does. Returns the updated Report, or None if not found.
+    """
+    session = Session()
+    try:
+        report = session.query(Report).filter(Report.id == report_id).first()
+        if report is None:
+            return None
+        report.category = category
+        report.updated_at = datetime.utcnow()
+        session.commit()
+        session.refresh(report)
+        return report
+    finally:
+        session.close()
+
+
 def delete_report(report_id):
     """
     Soft-delete a report: sets status to 0 (hidden) rather than removing

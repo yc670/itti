@@ -206,6 +206,14 @@
   gap: 10px;
 }
 /* ---------- Access Level panel ---------- */
+.access-level-search-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.access-level-search-row .access-level-search {
+  margin-bottom: 0;
+}
 .access-level-search {
   width: 100%;
   box-sizing: border-box;

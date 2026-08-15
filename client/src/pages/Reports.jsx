@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import ReportCard from '../components/ReportCard.jsx';
-import ReportViewerModal from '../components/ReportViewerModal.jsx';
 import { fetchFavoriteReportIds, favoriteReport, unfavoriteReport } from '../api.js';
 import { REPORT_CATEGORIES } from '../constants/reportCategories.js';
 import Reveal from '../components/Reveal.jsx';
@@ -20,7 +19,6 @@ export default function Reports() {
   const [showBrowser, setShowBrowser] = useState(Boolean(highlightId));
   const [favoriteIds, setFavoriteIds] = useState(new Set());
   const [activeCategory, setActiveCategory] = useState(REPORT_CATEGORIES[0]);
-  const [readingReport, setReadingReport] = useState(null);
 
   // Server-side enforcement is @roles_required("publisher", "admin") on
   // POST/DELETE /api/reports - this is only the UX layer that decides
@@ -169,7 +167,7 @@ export default function Reports() {
               <p className="reports-feature-desc">
                 Browse published research reports and field bulletins across{' '}
                 {REPORT_CATEGORIES.length} sections
-                {totalReports ? `, ${totalReports} report${totalReports === 1 ? '' : 's'} so far` : ''}.
+                {totalReports !== null ? `, ${totalReports} report${totalReports === 1 ? '' : 's'} so far` : ''}.
               </p>
             </div>
             <button
@@ -238,7 +236,7 @@ export default function Reports() {
                             onDelete={handleDelete}
                             isFavorited={favoriteIds.has(report.id)}
                             onToggleFavorite={isAuthenticated ? handleToggleFavorite : undefined}
-                            onRead={setReadingReport}
+                            onRead={(r) => navigate(`/reports/${r.id}`)}
                           />
                         </div>
                       ))}
@@ -284,10 +282,6 @@ export default function Reports() {
           </section>
         </Reveal>
       </div>
-
-      {readingReport && (
-        <ReportViewerModal report={readingReport} onClose={() => setReadingReport(null)} />
-      )}
     </div>
   );
 }

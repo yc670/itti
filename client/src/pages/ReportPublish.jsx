@@ -28,6 +28,9 @@ export default function ReportPublish() {
     return (
       <div className="report-publish-page">
         <SEO path="/reports/publish" title="Publish a Report" noindex />
+        <Link to="/reports" className="page-back-link">
+          ← Back to Reports
+        </Link>
         <div className="report-publish-gate">
           <h1>Log in to publish a report</h1>
           <p>You need an account to upload a report for peer review.</p>
@@ -43,6 +46,9 @@ export default function ReportPublish() {
     return (
       <div className="report-publish-page">
         <SEO path="/reports/publish" title="Publish a Report" noindex />
+        <Link to="/reports" className="page-back-link">
+          ← Back to Reports
+        </Link>
         <div className="report-publish-gate">
           <h1>You don't have access to this page</h1>
           <p>
@@ -62,6 +68,9 @@ export default function ReportPublish() {
     <div className="report-publish-page">
       <SEO path="/reports/publish" title="Publish a Report" noindex />
       <Reveal delay={0}>
+        <Link to="/reports" className="page-back-link">
+          ← Back to Reports
+        </Link>
         <div>
           <h1 className="display">Publish a Report</h1>
           <p>

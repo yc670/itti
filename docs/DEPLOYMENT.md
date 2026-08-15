@@ -175,6 +175,84 @@ minutes — the whole build happens on GitHub's free runners.
 
 ---
 
+# Persistent storage for uploads (fellow photos, report files/images)
+
+**This step is required, not optional, if the site will ever have
+fellow photos or reports uploaded through the live admin/publisher UI.**
+
+By default (`STORAGE_BACKEND` unset, or `local`), uploaded files are
+written to disk inside the backend's own container
+(`server/fellow_uploads/`, `server/report_uploads/`,
+`server/uploads/`). That's fine for local development, but App
+Platform rebuilds this service's container from a fresh image on
+every deploy — and `app.yaml` sets `deploy_on_push: true`, so that
+happens on every single push to `database`, not just occasionally.
+Anything written to local disk after the container started (i.e.
+every photo/file uploaded through the live site, as opposed to one
+that happened to already be committed to the repo and baked into the
+image) is gone the moment the container is rebuilt, while the
+database row referencing it is untouched.
+
+The visible symptom is a fellow's photo (or a report's file/cover
+image) failing to load. Depending on the app version, this shows up
+either as a broken image with a clean 404, or — before
+`storage.py`'s `get_file_response()` was hardened to catch this — a
+raw `{"error": "internal server error"}` from `GET
+/api/fellows/<id>/photo` and the equivalent report routes, since
+Flask's `send_file()` raises a bare `FileNotFoundError` for a missing
+file rather than a handled 404.
+
+The fix is the same one already used for the frontend above: point
+uploads at an S3-compatible bucket instead of local disk. `storage.py`
+already supports this — it's an env var flip, no code changes needed.
+
+## One-time setup
+
+1. **Create a second Spaces bucket**, separate from the frontend one:
+   dashboard → **Spaces Object Storage** → **Create a Spaces Bucket**
+   (e.g. `itti-uploads`, same or different region as the frontend
+   bucket — doesn't need to match). Leave the CDN option off; this
+   bucket doesn't need to be public, since `get_file_response()` serves
+   files through short-lived presigned URLs regardless of the bucket's
+   own visibility settings.
+2. **Reuse or generate Spaces access keys**: the same key/secret pair
+   from the frontend setup works here too (Spaces keys aren't scoped to
+   one bucket), or generate a separate pair under **API** → **Spaces
+   Keys** if you'd rather keep them independent.
+3. **Set these env vars on the backend service** (in `app.yaml` or the
+   dashboard — `app.yaml` in this repo already has the keys, just fill
+   in the placeholders):
+   | Env var | Value |
+   |---|---|
+   | `STORAGE_BACKEND` | `s3` |
+   | `STORAGE_S3_BUCKET` | Your bucket name, e.g. `itti-uploads` |
+   | `STORAGE_S3_ENDPOINT_URL` | Your region's Spaces endpoint, e.g. `https://nyc3.digitaloceanspaces.com` |
+   | `AWS_ACCESS_KEY_ID` | Spaces access key from step 2 |
+   | `AWS_SECRET_ACCESS_KEY` | Spaces secret key from step 2 |
+
+   (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` are boto3's standard
+   credential env vars — used here because Spaces speaks the S3 API,
+   not because anything AWS-specific is involved.)
+4. **Redeploy** the backend service so the new env vars take effect.
+
+## If you already deployed without this and have broken images now
+
+Any fellow/report uploaded through the live site before switching to
+`STORAGE_BACKEND=s3` is already gone from local disk and can't be
+recovered from the running container — there's nothing to migrate.
+After completing the setup above, re-upload the affected fellow
+photos (Profile → Control → Fellows) or report cover images; new
+uploads go straight to the bucket and will survive future deploys.
+
+Separately, `server/migrate_absolute_storage_paths.py` fixes a
+different, one-time issue some existing rows may have: a photo/file
+path baked in as an absolute, machine-specific path (e.g. from
+whoever ran an upload locally) rather than the portable relative path
+`storage.py` produces today. Safe to run against production any time
+— see the script's own docstring.
+
+---
+
 # Setting up your sending address (Brevo)
 
 This is the "what email address do you actually send from" question. You

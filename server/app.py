@@ -60,6 +60,7 @@ import globe_data
 import country_profiles_upload
 from decorators import get_current_user, login_required, roles_required
 from pagination import parse_pagination_args, paginated_json_response
+from sqlalchemy import inspect
 from models.database import Base, DATABASE_URL, engine
 from models.user import (
     create_user, get_user, get_user_by_google_sub, get_user_by_email,
@@ -71,9 +72,10 @@ from models.document import (
     hard_delete_document,
 )
 from models.report import (
-    create_report, get_report, get_published_reports, get_pending_reports,
+    create_report, get_report, get_all_reports, get_published_reports, get_pending_reports,
     get_changes_requested_reports, get_reports_by_uploader,
-    delete_report, hard_delete_report, resubmit_report, reports_to_public_dicts,
+    delete_report, hard_delete_report, resubmit_report, set_report_category,
+    reports_to_public_dicts, REPORT_CATEGORIES,
 )
 from models.report_review import record_review, get_reviews_for_report, reviews_to_public_dicts, ReviewError
 from models.notification import (
@@ -305,7 +307,8 @@ def set_security_headers(response):
     # default this docstring describes - setdefault only fills in a
     # value if the route didn't already set one, it never clobbers an
     # explicit choice a route made.
-    response.headers.setdefault("Cache-Control", "no-store")
+    response.headers.setdefault("Cache-Control", "no-store, private")
+    response.headers["Pragma"] = "no-cache"
     response.headers["Vary"] = "Cookie"
     if request.is_secure:
         response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
@@ -363,11 +366,25 @@ def handle_uncaught_exception(e):
 
 
 # Local SQLite dev DB: auto-create tables so `python app.py` just works
-# with zero setup. Any real database (DATABASE_URL set, e.g. Postgres) is
-# expected to be managed via migrations instead - see migrations/README
-# and `alembic upgrade head`, run once before first boot and again after
-# pulling any change with a new revision.
-if DATABASE_URL.startswith("sqlite"):
+# with zero setup on a brand new clone. Deliberately gated on the DB
+# being completely empty (no tables at all yet) rather than just "is
+# this sqlite" - a real deployment can also use sqlite (e.g. a small
+# droplet with no Postgres), and unconditionally re-running create_all()
+# on every restart is NOT safe there: create_all() only ever creates
+# tables that don't exist yet, it never alters an existing table to add
+# a newly-modeled column. That mismatch (new tables silently kept
+# current, older tables silently left missing every column any
+# migration added after their first creation) is exactly what caused
+# `reports` to end up missing resubmission_note/review_status/version/
+# category/updated_at for months on the ittiglobal.org droplet, invisible
+# until GET /api/reports finally hit one of the missing columns - see
+# server/fix_reports_schema.py for the one-time repair, and
+# docs/DEPLOYMENT.md.
+#
+# Once ANY tables exist - whether from this running once, or from
+# `alembic upgrade head` - alembic owns schema changes from then on;
+# this block gets out of the way and never fires again for that DB.
+if DATABASE_URL.startswith("sqlite") and not inspect(engine).get_table_names():
     Base.metadata.create_all(engine)
 
 storage = get_storage(UPLOAD_DIR)
@@ -1733,6 +1750,64 @@ def list_changes_requested_reports_route():
     return paginated_json_response(reports_to_public_dicts(reports), total, limit, offset)
 
 
+@app.get("/api/reports/all")
+@roles_required("admin")
+def list_all_reports_route():
+    """
+    Every report regardless of review_status (pending, changes_requested,
+    published, or rejected) or hidden status, newest first. Admin-only -
+    unlike every other /api/reports/* list route, which is scoped to
+    one review stage for a specific page of the site, this backs the
+    Control tab's "recategorize an existing report" tool (see
+    ReportCategoryControl.jsx), where an admin needs to find any report
+    regardless of what stage it's in.
+
+    Query params:
+      - "search": optional, case-insensitive substring match on title
+      - "category": optional, exact match - one of REPORT_CATEGORIES
+      - "limit"/"offset": standard pagination (see pagination.py)
+    """
+    search = (request.args.get("search") or "").strip() or None
+    category = (request.args.get("category") or "").strip() or None
+    limit, offset = parse_pagination_args()
+    reports, total = get_all_reports(search=search, category=category, limit=limit, offset=offset)
+    return paginated_json_response(reports_to_public_dicts(reports), total, limit, offset)
+
+
+@app.patch("/api/reports/<int:report_id>/category")
+@roles_required("admin")
+def update_report_category_route(report_id):
+    """
+    Body: { "category": "..." }
+    Admin-only correction tool - updates ONLY the category, regardless
+    of the report's review_status or version. Deliberately does not
+    touch review_status, version, or send the report back through peer
+    review (unlike resubmit_report(), which is a content change from
+    the uploader) - recategorizing an already-published report is a
+    metadata fix, not new content needing re-approval. Exists because
+    every report uploaded before upload_report()'s category-handling
+    fix silently landed in the default "National Trauma Assessment"
+    category regardless of what the uploader actually selected - see
+    that route's own history for the root cause. This is how those
+    are corrected after the fact.
+    """
+    body = request.get_json(silent=True) or {}
+    category = (body.get("category") or "").strip()
+
+    error = validation.run_check("report_category", category)
+    if error:
+        abort(400, description=error)
+
+    report = set_report_category(report_id, category)
+    if report is None:
+        abort(404, description="Report not found")
+
+    user = get_current_user()
+    logger.info("report category updated id=%s to=%r by admin_user_id=%s", report_id, category, user.id)
+
+    return jsonify(report.to_public_dict())
+
+
 @app.get("/api/reports/<int:report_id>")
 def get_report_route(report_id):
     """A single report's metadata. Public only once published; otherwise
@@ -1874,10 +1949,12 @@ def upload_report():
 
     title = (request.form.get("title") or "").strip()
     description = (request.form.get("description") or "").strip()
+    category = (request.form.get("category") or "").strip()
 
     error = validation.validate_all([
         ("report_title", title),
         ("report_description", description),
+        ("report_category", category),
     ])
     if error:
         abort(400, description=error)
@@ -1893,6 +1970,7 @@ def upload_report():
         uploaded_by=user.id,
         title=title,
         description=description,
+        category=category,
         file_path=file_path,
         file_type=file_type,
         original_filename=original_filename,

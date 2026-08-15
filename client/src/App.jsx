@@ -20,6 +20,7 @@ import Home from './pages/Home.jsx';
 const About = lazy(() => import('./pages/About.jsx'));
 const Observatory = lazy(() => import('./pages/Observatory.jsx'));
 const Reports = lazy(() => import('./pages/Reports.jsx'));
+const ReportView = lazy(() => import('./pages/ReportView.jsx'));
 const CountryProfiles = lazy(() => import('./pages/CountryProfiles.jsx'));
 const Fellowship = lazy(() => import('./pages/Fellowship.jsx'));
 const Certifications = lazy(() => import('./pages/Certifications.jsx'));
@@ -117,14 +118,6 @@ export default function App() {
             reasoning as /reports/publish above. */}
         <Route path="/peer-review" element={<PeerReview />} />
         <Route path="/peer-review/mine" element={<PeerReviewMine />} />
-        {/* Not wrapped in ProtectedRoute on purpose - see the comment atop
-            PeerReview.jsx: a non-publisher/admin (including a signed-out
-            visitor) landing here sees an explanation instead of a silent
-            redirect, mirroring ReportPublish.jsx. Server-side enforcement
-            is the real gate (@roles_required("publisher", "admin") on
-            every /api/reports/pending, /api/reports/<id>/review, etc.
-            route this page calls). */}
-        <Route path="/peer-review" element={<PeerReview />} />
         <Route
           path="/settings"
           element={
@@ -144,6 +137,15 @@ export default function App() {
             the comment atop ReportPublish.jsx. Linked from the "Publish
             a Report" section of /reports. */}
         <Route path="/reports/publish" element={<ReportPublish />} />
+        {/* A real page (not a same-page modal) so a specific report has
+            its own shareable/bookmarkable URL and works with the
+            browser back button - see the comment atop ReportView.jsx.
+            Not wrapped in ProtectedRoute: a published report is public,
+            and ReportView.jsx's own fetch of GET /api/reports/:id
+            already 404s cleanly for a report that isn't visible to the
+            current viewer (see _can_view_report in app.py) - the same
+            server-side gate every other report route already relies on. */}
+        <Route path="/reports/:id" element={<ReportView />} />
       </Routes>
       </Suspense>
       </PageTransition>

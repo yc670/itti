@@ -108,6 +108,26 @@
     color:var(--text-hi);
   }
 
+  /* ---------- Shared "back to X" link ---------- */
+  /* Used at the top-left of standalone pages reached from a listing
+     page (Reports -> report view/publish/peer review) so there's
+     always an obvious, consistent way back, independent of browser
+     history (a bookmarked or directly-linked URL has no "back" to go
+     to otherwise). Originally specific to Reports.css's report view
+     page; promoted here once ReportPublish/PeerReview/PeerReviewMine
+     needed the identical link. */
+  .page-back-link {
+    display: inline-block;
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: var(--text-mid);
+    text-decoration: none;
+  }
+  .page-back-link:hover {
+    color: var(--text-hi);
+    text-decoration: underline;
+  }
+
   /* ---------- Page transition ---------- */
   /* Wraps whatever <Routes> renders (see App.jsx). Has to behave as a
      transparent flex pass-through, not just a plain div: #app is a

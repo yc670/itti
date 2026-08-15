@@ -1,200 +1,31 @@
-Replace link-based password reset with a verification-code flow;
-modernize the Settings password section; add a confirmation popup
-when Google sign-in links to an existing password account
+<<<<<<< HEAD
+commit 7bd1ce6
+Restore S3 storage config for uploads dropped in later merges
 
-None of this was covered by prior work - confirmed by reading the
-actual forgot-password/reset-password routes and the Google auth
-route before starting, not just by scanning recent commit messages.
-The old flow was link-only (emailed token -> /reset-password?token=),
-which is what the reported "Something went wrong" error was actually
-symptomatic of: no verification-code concept, no resend/invalidate,
-existed anywhere. The Google account-linking backend logic already
-worked correctly (auth_google() has always linked by email) - only
-the frontend confirmation message was missing.
+app.yaml and docs/DEPLOYMENT.md lost the STORAGE_BACKEND=s3 setup
+from 86f9450 ("Fix fellow/report images crashing with 500 in
+production") somewhere across the report_page/peer_review and
+login_brevo merges - likely just not carried forward by whoever
+resolved those unrelated conflicts in the same files. The code-level
+half of that fix (storage.py's portable relative paths + clean 404
+on a missing file, migrate_absolute_storage_paths.py) was untouched
+and is still present.
 
-server/models/password_reset_code.py                        [A]
-    New PasswordResetCode model + CRUD, mirroring
-    password_reset_token.py's hashing approach (only a SHA-256 hash of
-    the code is ever stored). 6-digit codes, 10-minute TTL (vs. the
-    link flow's 1 hour, since this is meant to be entered right after
-    the email arrives), 5-attempt cap enforced independently of
-    Flask-Limiter's route-level throttle, and a 30-second resend
-    cooldown enforced inside create_reset_code() itself so any caller
-    gets the same protection. invalidate_active_codes() backs the
-    "wrong email, go back" path - abandoning the flow kills the
-    outstanding code immediately rather than leaving it valid.
+Without this, production has no STORAGE_BACKEND set, so uploads
+still default to local disk - which App Platform wipes on every
+redeploy (deploy_on_push: true) - meaning any fellow photo or report
+file/image uploaded through the live site will still fail to load
+once the next deploy happens, even though it now 404s cleanly
+instead of 500ing.
 
-server/migrations/versions/9dd9f4e91099_add_password_reset_codes.py [A]
-    Adds the password_reset_codes table. down_revision points at
-    635cd82587f6 (add_notifications_table), the actual current head -
-    verified with `alembic heads` before writing this, since the local
-    app.db's stamped version (7342a5f24b87) had drifted behind the
-    real schema (which already had the fellows/notifications tables
-    from prior work). Stamped the local DB to the true head separately
-    rather than folding a fix for that pre-existing drift into this
-    migration.
-
-server/models/__init__.py                                   [M]
-    Import password_reset_code so its model is registered with
-    SQLAlchemy's mapper (same reasoning as every other import in this
-    file - see its own docstring).
-
-server/email_backend.py                                     [M]
-    send_password_reset_email() (composed a reset link) replaced with
-    send_password_reset_code_email() (composes the 6-digit code
-    instead). No backend changes - still goes through
-    get_email_backend()'s existing console/SMTP split, so Brevo stays
-    wired in exactly as already documented (docs/DEPLOYMENT.md,
-    app.yaml) via SMTP_HOST=smtp-relay.brevo.com. Per this round's
-    scope: code-only email (no fallback link), Brevo via the existing
-    SMTP relay rather than its separate HTTP API.
-
-server/app.py                                                [M]
-    - forgot_password(): now creates+sends a 6-digit code instead of a
-      token/link. Same email-enumeration protection as before (generic
-      response regardless of registration, send failures swallowed
-      and logged rather than propagated) - factored the
-      create-code-and-send-it logic into a shared
-      _send_reset_code_or_none() helper so forgot_password() and the
-      new resend route can't drift apart on that protection.
-    - New POST /api/auth/forgot-password/resend: invalidates the
-      outstanding code and sends a fresh one. Surfaces the resend
-      cooldown as a distinct "please wait" message when hit - safe to
-      do without leaking account existence, since the same generic
-      wording still covers the unregistered-email case.
-    - New POST /api/auth/forgot-password/back: invalidates any
-      outstanding code for an email. Called when the user leaves the
-      verify-code screen to correct their email.
-    - New POST /api/auth/forgot-password/verify: checks a guessed code
-      against the active one for that email. On a match, logs the user
-      in immediately (session cookie, same pattern the old
-      reset_password() used) - this is what lets the frontend land
-      directly on Profile > Settings to actually change the password,
-      fully authenticated, instead of a separate one-off "set new
-      password" form. Distinguishes mismatch / expired /
-      too-many-attempts for the frontend without leaking whether the
-      email itself is registered.
-    - reset_password() (token-based): kept as-is, now documented as a
-      legacy path only - any reset link already emailed before this
-      deploy (1-hour TTL) still redeems correctly. New requests no
-      longer generate these tokens/links at all.
-    - auth_google(): now tracks whether this sign-in linked Google to
-      a pre-existing password account that hadn't used Google before
-      (as opposed to a repeat login or a reactivated already-linked
-      account), and returns it as a sibling `linked_existing_account`
-      key alongside the user fields - not folded into
-      to_public_dict() itself, since that shape is shared by every
-      auth/profile endpoint and this flag only describes what happened
-      in this one request.
-
-client/src/context/AuthContext.jsx                          [M]
-    requestPasswordReset() now hits the same forgot-password endpoint
-    (sends a code instead of a link - no signature change). Added
-    resendPasswordResetCode(), cancelPasswordReset() (best-effort,
-    never blocks navigation), and verifyPasswordResetCode() (logs the
-    user in on success, mirroring loginWithGoogle/loginWithPassword).
-    resetPassword() (token-based) kept for ResetPassword.jsx's legacy
-    link path.
-
-client/src/pages/ForgotPassword.jsx                          [M]
-    Rewritten: on submit, navigates to the new
-    /reset-password/verify page with the email in router state,
-    instead of showing an inline "check your inbox" message. Added
-    client-side email format validation (checkEmail) before
-    submitting, matching the pattern already used on Login/SignUp.
-
-client/src/pages/VerifyResetCode.jsx                          [A]
-    New page: 6 individual digit boxes (auto-advance on input,
-    backspace-to-previous, paste-anywhere support for pasting the full
-    code at once), "Resend code" with a live countdown once a resend
-    has been sent, and "Wrong email? Go back" (calls
-    cancelPasswordReset() then returns to /forgot-password). Requires
-    email in location.state - a direct/refreshed visit with nothing to
-    verify against redirects back to start rather than rendering a
-    broken form. On a correct code, navigates to /profile#settings
-    (the user is already logged in server-side at that point) with
-    state.fromReset=true so SettingsPanel can show a short
-    confirmation banner above the password form.
-
-client/src/App.jsx                                            [M]
-    Registered /reset-password/verify (VerifyResetCode, lazy-loaded
-    like every other route except Home). /reset-password kept,
-    commented as serving only already-emailed legacy links.
-
-client/src/components/SettingsPanel.jsx                       [M]
-    Password section modernized: each of the three fields now has its
-    own uppercase label above it (Current password / New password /
-    Confirm new password) instead of relying on placeholder text
-    alone, with more vertical spacing between them
-    (.settings-password-form). Added the same live "Passwords
-    match"/"do not match" hint under Confirm new password that
-    SignUp.jsx and ResetPassword.jsx already use
-    (checkPasswordsMatch from formValidation.js) - previously this was
-    only checked on submit via passwordReady. When arriving here via
-    location.state.fromReset (set by VerifyResetCode.jsx), shows a
-    "Your code was verified" banner above the form.
-
-client/src/styles/Settings.css                                [M]
-    New .settings-password-form (wider gap between the three fields),
-    .settings-field/.settings-field-label (the new per-field
-    headings), .settings-field-hint--match/--mismatch (confirm-
-    password live feedback), .settings-reset-banner (the
-    post-verification confirmation banner).
-
-client/src/styles/Login.css                                   [M]
-    New .code-input-row/.code-input-box (the 6-digit input boxes on
-    VerifyResetCode) and .login-link-button/.login-resend-row (inline
-    button-styled-as-link for Resend/Go back, consistent with the
-    existing .login-forgot-link/.login-signup-link treatment).
-
-client/src/pages/Login.jsx                                    [M]
-    handleGoogleSuccess() now checks the new
-    linked_existing_account flag on the response. When true, holds
-    navigation and shows a Modal ("Account updated") confirming the
-    Google sign-in was linked to their existing account and no data
-    was lost, rather than redirecting immediately - the user
-    acknowledges it via the modal's Continue button (or Esc/overlay
-    click, both wired through Modal's existing onClose), which is what
-    actually navigates.
-
-client/src/pages/SignUp.jsx                                   [M]
-    Same treatment as Login.jsx for its own Google button (SignUp
-    offers Google Sign-In too, "for anyone who changes their mind" per
-    its own docstring) - identical modal copy and
-    acknowledge-before-navigate behavior, kept as a second instance
-    rather than a shared component since the two pages' surrounding
-    state (redirect target vs. fixed "/") already differ.
-
-====================
-VERIFICATION
-====================
-
-Backend: imports cleanly (71 routes, up from 68); single alembic head
-(9dd9f4e91099); migration applies cleanly against the local app.db
-after stamping it to its actual current schema version. Flask
-test-client pass covers: code sent on forgot-password (console
-backend logs it), wrong code rejected without revealing account
-existence, correct code logs the user in immediately (verified via a
-follow-up /api/auth/me call), a used code can't be replayed, resend
-invalidates the previous code, the 30-second resend cooldown blocks a
-too-fast second resend, going back invalidates the outstanding code,
-and the 5-attempt cap locks further guesses (tested directly against
-verify_code() to isolate it from Flask-Limiter's own route-level
-throttle, which is a separate, coarser layer). Full journey test:
-signup -> forgot-password -> wrong code -> correct code -> now
-authenticated -> change password via existing /api/auth/update-profile
--> log out -> log in with the new password, all succeed in sequence.
-Google-link flag verified three ways with a mocked id_token.verify_
-oauth2_token: first Google login on an existing password account
-returns linked_existing_account=true; a repeat Google login on that
-same now-linked account returns false; a brand-new Google-only signup
-returns false.
-
-Frontend: fresh `npm install --ignore-scripts && npx vite build`
-completes cleanly (skipped the Playwright-dependent postbuild
-prerender step, which needs a browser download this sandbox's network
-allowlist doesn't permit - unrelated to this change, vite build alone
-is sufficient to confirm every new/modified file compiles and
-resolves correctly). Confirmed no stale references to the old
-resetPassword export after the rewrite (ResetPassword.jsx's legacy
-token path still imports it correctly from AuthContext).
+- app.yaml: re-add STORAGE_BACKEND, STORAGE_S3_BUCKET,
+  STORAGE_S3_ENDPOINT_URL, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+  env vars for the backend service, with setup guidance in comments
+- docs/DEPLOYMENT.md: re-add the "Persistent storage for uploads"
+  section (bucket setup, env vars, and what to do about images
+  already broken before this is configured), plus a pointer to
+  migrate_absolute_storage_paths.py for pre-existing bad rows
+=======
+Fix GET /api/reports 500: repair drifted reports schema, stop create_all() from masking future drift
+Rewrite fix_reports_schema.py to be generic, not reports-only
+>>>>>>> 8f671229e15aada48f5687f4d21265f7ee9304b1
