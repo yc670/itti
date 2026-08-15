@@ -67,10 +67,10 @@ export default function ReportPublish() {
   return (
     <div className="report-publish-page">
       <SEO path="/reports/publish" title="Publish a Report" noindex />
+      <Link to="/reports" className="page-back-link">
+        ← Back to Reports
+      </Link>
       <Reveal delay={0}>
-        <Link to="/reports" className="page-back-link">
-          ← Back to Reports
-        </Link>
         <div>
           <h1 className="display">Publish a Report</h1>
           <p>

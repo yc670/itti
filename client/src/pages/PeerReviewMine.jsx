@@ -91,10 +91,10 @@ export default function PeerReviewMine() {
   return (
     <div className="peer-review-page">
       <SEO path="/peer-review/mine" title="My Submissions" noindex />
+      <Link to="/reports" className="page-back-link">
+        ← Back to Reports
+      </Link>
       <Reveal delay={0}>
-        <Link to="/reports" className="page-back-link">
-          ← Back to Reports
-        </Link>
         <div className="peer-review-header">
           <div>
             <h2 className="display">My Submissions</h2>
