@@ -70,39 +70,7 @@ export default function PeerReview() {
         <Link to="/reports" className="page-back-link">
           ← Back to Reports
         </Link>
-<<<<<<< HEAD
-        <div className="peer-review-gate">
-          <h1>Log in to review reports</h1>
-          <p>You need an account with publisher access to review reports awaiting approval.</p>
-          <Link className="btn btn-primary" to="/login" state={{ from: { pathname: '/peer-review' } }}>
-            Log in
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isPublisher) {
-    return (
-      <div className="peer-review-page">
-        <SEO path="/peer-review" title="Peer Review" noindex />
-        <Link to="/reports" className="page-back-link">
-          ← Back to Reports
-        </Link>
-        <div className="peer-review-gate">
-          <h1>You don't have access to this page</h1>
-          <p>
-            Reviewing reports is limited to accounts with publisher access. Your current account doesn't have
-            that access level yet.
-          </p>
-          <p>
-            To request an upgrade, contact{' '}
-            <a href="mailto:support@ittiglobal.org">support@ittiglobal.org</a>.
-          </p>
-        </div>
-=======
         <PublisherAccessGate isAuthenticated={isAuthenticated} fromPath="/peer-review" />
->>>>>>> 8f671229e15aada48f5687f4d21265f7ee9304b1
       </div>
     );
   }
