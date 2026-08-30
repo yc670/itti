@@ -165,6 +165,26 @@ def send_password_reset_code_email(backend, to_email, code):
     )
 
 
+def send_email_verification_code_email(backend, to_email, code):
+    """
+    code is the raw 6-digit code (see
+    models/email_verification_code.py) - sent right after signup and
+    on every resend. Unlike the password-reset email above, there's no
+    "if you didn't request this, ignore it" framing - creating the
+    account IS the request, so silence isn't a safe interpretation.
+    """
+    backend.send(
+        to=to_email,
+        subject="Verify your ITTI account",
+        body=(
+            "Welcome to ITTI. Enter this code to verify your email and activate your account:\n\n"
+            f"{code}\n\n"
+            "This code expires in 10 minutes. If you didn't create an account with this "
+            "email, no account has been activated and you can disregard this message."
+        ),
+    )
+
+
 def send_enrollment_confirmation_email(backend, enrollment, to_email, to_name):
     """
     enrollment is a models.enrollment.Enrollment row already marked

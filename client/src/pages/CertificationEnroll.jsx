@@ -4,6 +4,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import Modal from '../components/Modal.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { csrfFetch } from '../api.js';
 
 // Kept in sync with server/app.py's REFUND_PARTIAL_WINDOW_DAYS /
 // REFUND_PARTIAL_FRACTION - the server enforces this for real (see
@@ -119,7 +120,7 @@ export default function CertificationEnrollModal({ cert, onClose }) {
     setStarting(true);
     setStartError(null);
     try {
-      const res = await fetch('/api/certifications/payment-intent', {
+      const res = await csrfFetch('/api/certifications/payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

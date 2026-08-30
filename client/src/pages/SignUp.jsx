@@ -73,8 +73,12 @@ export default function Signup() {
 
     setLoading(true);
     try {
-      await signup(name.trim(), email.trim().toLowerCase(), password);
-      navigate("/");
+      const trimmedEmail = email.trim().toLowerCase();
+      await signup(name.trim(), trimmedEmail, password);
+      // Doesn't log in - a fresh account starts unverified (see
+      // AuthContext.jsx's signup()) - route to the code-entry screen,
+      // same pattern as ForgotPassword.jsx -> VerifyResetCode.jsx.
+      navigate("/verify-email", { state: { email: trimmedEmail }, replace: true });
     } catch (err) {
       if (err.message.includes("already exists")) {
         setFormError("An account with this email already exists.");

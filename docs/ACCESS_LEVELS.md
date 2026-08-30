@@ -11,18 +11,49 @@
   authenticated and `User.status` (which just tracks soft-deleted
   accounts, unrelated to permissions).
 
-## The three tiers today
+## The four tiers today
 
 | Role        | Granted how                                     | Can do                                       |
 |-------------|----------------------------------------------------|------------------------------------------------|
 | `basic`     | Automatically, on every signup/first Google sign-in | Browse the site, view their own documents/events |
-| `publisher` | Manually, by an admin (`promote_user.py`)           | Everything `basic` can, plus upload/soft-delete documents |
-| `admin`     | Manually, by another admin (`promote_user.py`)      | Everything `publisher` can, plus permanently (hard) delete documents |
+| `publisher` | Manually, by an admin (`promote_user.py`)           | Everything `basic` can, plus upload/soft-delete documents and reports (a *published* report's deletion goes through a review request instead - see below) |
+| `reviewer`  | Manually, by an admin (`promote_user.py`)           | Everything `publisher` can, plus deciding a publisher's request to delete their own published report |
+| `admin`     | Manually, by another admin (`promote_user.py`)      | Everything `reviewer` can, plus permanently (hard) delete documents/reports, and instantly delete any report (published or not) without going through review |
 
 `server/models/user.py` defines `ROLE_BASIC`, `ROLE_PUBLISHER`,
-`ROLE_ADMIN`, and `VALID_ROLES`. Neither `/api/auth/google` nor
-`/api/auth/signup` ever pass a role — new accounts always land on
-`ROLE_BASIC`.
+`ROLE_REVIEWER`, `ROLE_ADMIN`, and `VALID_ROLES`. Neither
+`/api/auth/google` nor `/api/auth/signup` ever pass a role — new
+accounts always land on `ROLE_BASIC`.
+
+### Report deletion: instant vs. review-gated
+
+Two different paths, depending on who's deleting what:
+
+- **Admin, any report, any review_status** — `DELETE /api/reports/<id>`
+  soft-deletes instantly, same as before this tier existed.
+- **Publisher/reviewer, their own report, NOT yet published**
+  (`pending_review`/`changes_requested`/`rejected`) — same instant
+  `DELETE /api/reports/<id>`, since the report was never public and
+  there's nothing for anyone else to weigh in on.
+- **Publisher/reviewer, their own PUBLISHED report** —
+  `DELETE /api/reports/<id>` returns 409. Instead:
+  1. `POST /api/reports/<id>/request-deletion` with a required
+     `reason` - the report stays visible on the public Reports page
+     throughout (deliberately - see `REVIEW_STATUS_DELETION_REQUESTED`'s
+     own comment in `models/report.py`), `review_status` becomes
+     `deletion_requested`.
+  2. A `reviewer` or `admin` (not the uploader) decides via
+     `POST /api/reports/<id>/deletion-review` with
+     `{"decision": "approve"}` or `{"decision": "deny"}` - unlike the
+     3-approval/2-rejection publish workflow, **a single decision is
+     final immediately** either way. Approve soft-deletes it (recording
+     `deleted_via="deletion_review"`); deny puts it back to `published`.
+
+Every report soft-deleted while it was published (either path above)
+appears on the admin-only Deleted Reports page
+(`GET /api/reports/deleted`), which supports bulk hard-delete
+(`DELETE .../permanent`) or repost (`POST .../repost`, which just
+restores visibility - no re-review).
 
 ## How a route becomes tier-gated
 

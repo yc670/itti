@@ -45,4 +45,11 @@ server/app.db
 # report" case too (server/report_uploads/, previously listed alone).
 server/uploads/
 server/report_uploads/
-server/fellow_uploads/server/app.db
+server/fellow_uploads/
+
+# git-format-patch output - these are meant to be shared/applied
+# elsewhere, not committed into the repo itself. Two had ended up
+# tracked (0001-...patch, 0002-...patch, from a "package as patch"
+# request that got committed by mistake) - removed from tracking
+# alongside this rule; see git log if that history needs revisiting.
+*.patch

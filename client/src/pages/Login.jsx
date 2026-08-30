@@ -21,7 +21,14 @@ export default function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(null);
+  // Pre-populated (rather than null) when AuthContext.jsx's periodic
+  // session-expiry check redirects here with state.sessionExpired -
+  // this is what actually surfaces "why am I suddenly logged out" to
+  // the person, rather than them just landing on an unexplained login
+  // screen.
+  const [error, setError] = useState(
+    location.state?.sessionExpired ? "Your session expired due to inactivity. Please log in again." : null
+  );
   const [loading, setLoading] = useState(false);
   // Set (to the pending redirect target) when the backend reports this
   // Google sign-in was linked to a pre-existing email/password account
@@ -80,6 +87,15 @@ export default function Login() {
       await loginWithPassword(email, password);
       navigate(redirectTo, { replace: true });
     } catch (err) {
+      // err.data is attached by postJson() in AuthContext.jsx whenever
+      // the server response body has more than error/description - here
+      // that's the account's email, so the verify-email screen can be
+      // pre-filled with it rather than asking the person to retype what
+      // they just typed into this form a second ago.
+      if (err.data?.error === 'email_not_verified') {
+        navigate('/verify-email', { state: { email: err.data.email }, replace: true });
+        return;
+      }
       setError(err.message);
     } finally {
       setLoading(false);

@@ -1,0 +1,47 @@
+.not-found-page {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 48px 24px;
+  box-sizing: border-box;
+}
+
+.not-found-content {
+  max-width: 480px;
+  text-align: center;
+}
+
+.not-found-eyebrow {
+  color: var(--cyan);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  margin: 0 0 12px 0;
+}
+
+.not-found-title {
+  font-size: 32px;
+  color: var(--text-hi);
+  margin: 0 0 12px 0;
+}
+
+.not-found-text {
+  color: var(--text-mid);
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 0 28px 0;
+}
+
+.not-found-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .not-found-actions {
+    flex-direction: column;
+  }
+}

@@ -328,57 +328,105 @@ export const USER_GUIDE_INTRO =
   "country/year data and charts across ETTI and GTBI, and the Nigeria Trauma Observatory (NTO), a fixed worked " +
   "example built the same way. This guide walks through both.";
 
+// Each step's `body` is an array of segments rendered in order - a plain
+// segment is { text }, a bolded segment (naming an actual tab, button,
+// checkbox, or field on the page) is { bold }. `bullets`, where present,
+// is supplementary detail rendered as a plain list under the paragraph.
 export const USER_GUIDE_STEPS = [
   {
-    title: "1. Choose an indicator",
-    body:
-      "On the International tab, start by picking ETTI or GTBI from the indicator tabs. Each has its own set of " +
-      "countries, years, and variables - the query tool works one indicator at a time, though panels from both " +
-      "can be combined later when you build a chart.",
+    title: "1. Choose a tab and an indicator",
+    body: [
+      { text: "At the top of the page, pick " },
+      { bold: "International Trauma Observatory" },
+      { text: ". Below that, pick " },
+      { bold: "ETTI" },
+      { text: " or " },
+      { bold: "GTBI" },
+      { text: " - the query tool works one indicator at a time, though panels from both can be combined into a chart later." },
+    ],
+    bullets: [
+      "Each indicator has its own set of countries, years, and variables.",
+      "Switching between ETTI and GTBI doesn't clear panels you've already added to the other one.",
+    ],
   },
   {
     title: "2. Add data panels",
-    body:
-      "Use the country picker to search for a country and select one or more years on file for it, then add them " +
-      "as data panels. Each panel shows every variable recorded for that country/year, with a colored country dot " +
-      "and border so the same country is recognizable at a glance across panels, charts, and legends.",
+    body: [
+      { text: "Click " },
+      { bold: "+ Select Data" },
+      { text: ", search for a country, check one or more years, then click " },
+      { bold: "Add to selected data" },
+      { text: " to confirm. Each country/year becomes its own panel with a colored dot and border so it's easy to spot later." },
+    ],
+    bullets: [
+      "You can check multiple years for the same country in one pass through the search window.",
+      "A panel shows every recorded variable for that country/year, not just one.",
+      "Panels persist as you switch between the ETTI and GTBI tabs.",
+    ],
   },
   {
-    title: "3. Select panels to chart",
-    body:
-      "Check the box on any data panel to mark it as chartable. You can check panels from both the ETTI and GTBI " +
-      "tabs and combine them into a single chart, table, or stats summary - the checkbox state is what feeds the " +
-      "chart builder below, not which indicator tab happens to be open.",
+    title: "3. Check panels to chart",
+    body: [
+      { text: "Each panel has a checkbox in its top-left corner - check the ones you want to chart. You can mix panels from ETTI and GTBI. Use " },
+      { bold: "Select all" },
+      { text: " / " },
+      { bold: "Deselect all" },
+      { text: " to toggle every panel for the current indicator at once." },
+    ],
+    bullets: [
+      "Checking a panel doesn't remove or hide it - it just marks it as chartable.",
+      "Panels you leave unchecked stay visible but are left out of the chart, table, and stats views.",
+    ],
   },
   {
     title: "4. Build a chart",
-    body:
-      "With at least one panel checked, pick a chart type (bar, line, pie, radar, scatter, or a stacked domain/" +
-      "exposure-type breakdown where available) and a variable, then click \"Create chart.\" Bar, line, and radar " +
-      "support a \"split by country\" toggle for small-multiples view when more than one country is selected. " +
-      "Finished charts can be downloaded as SVG or, if you're logged in, saved to your profile.",
+    body: [
+      { text: "In the chart builder bar below the panels, pick a chart type and variable from the dropdowns, then click " },
+      { bold: "Create chart" },
+      { text: ". For bar, line, and radar charts with more than one country selected, a " },
+      { bold: "Split by country" },
+      { text: " checkbox appears. Once a chart appears, use " },
+      { bold: "Download" },
+      { text: " to save it, or " },
+      { bold: "Save to profile" },
+      { text: " if logged in." },
+    ],
+    bullets: [
+      "Chart type options include bar, line, pie, radar, scatter, and stacked domain/exposure-type breakdowns where available.",
+      "Stacked domain charts use EVS/TIE/PDL/ITS; stacked exposure charts use each GTBI exposure type's YLL - no variable dropdown needed for either.",
+      "Split by country breaks a single chart into small multiples, one per country.",
+      "Download saves an SVG; Save to profile requires being logged in.",
+    ],
   },
   {
     title: "5. Switch views",
-    body:
-      "Beyond charts, the same checked panels can be viewed as a map, a sortable data table, summary statistics, " +
-      "or a timeline - use the view tabs above the chart builder to switch between them without losing your " +
-      "selection.",
+    body: [
+      { text: "Above the chart builder sit five tabs - " },
+      { bold: "Chart, Map, Table, Stats, Timeline" },
+      { text: " - all reading the same checked panels." },
+    ],
+    bullets: [
+      "Switching views never changes or clears which panels are checked.",
+      "Map uses whichever indicator tab (ETTI or GTBI) is currently open, regardless of what's checked.",
+    ],
   },
   {
-    title: "6. Explore the Nigeria tab (NTO)",
-    body:
-      "The Nigeria Trauma Observatory tab is a fixed worked example: every recorded ETTI and GTBI year for Nigeria " +
-      "as read-only data panels, a geographic stressor severity map, and a set of pre-built charts organized into " +
-      "Trends, Comparisons, and Breakdowns. It's meant to demonstrate what the interactive query tool on the " +
-      "International tab can do, using real Nigeria data as the example.",
+    title: "6. Try the Nigeria example",
+    body: [
+      { text: "Click the " },
+      { bold: "Nigeria Trauma Observatory (NTO)" },
+      { text: " tab at the top for a ready-made set of Nigeria charts and maps - no setup needed." },
+    ],
+    bullets: [
+      "Includes every recorded ETTI and GTBI year for Nigeria as read-only panels.",
+      "Charts are pre-built and organized into Trends, Comparisons, and Breakdowns.",
+      "Meant as a working example of what the International tab's query tool can produce.",
+    ],
   },
   {
     title: "7. Check the references",
-    body:
-      "Every section of this Docs page documents the data sources, formulas, and known gaps behind the figures " +
-      "you'll see in the Observatory, including the full APA-formatted reference list behind the Nigeria stressor " +
-      "map. If a value reads \"Data Pending,\" it means the underlying source doesn't yet have a usable number for " +
-      "that field - not that it's zero.",
+    body: [
+      { text: "Every section of this Docs page documents the data sources, formulas, and known gaps behind the figures you'll see in the Observatory, including the full APA-formatted reference list behind the Nigeria stressor map. If a value reads \"Data Pending,\" it means the underlying source doesn't yet have a usable number for that field - not that it's zero." },
+    ],
   },
 ];

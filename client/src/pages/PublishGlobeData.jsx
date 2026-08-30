@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import Reveal from '../components/Reveal.jsx';
 import SEO from '../components/SEO.jsx';
+import { csrfFetch } from '../api.js';
 import '../styles/PublishGlobeData.css';
 
 const KIND_OPTIONS = [
@@ -71,9 +72,8 @@ export default function PublishGlobeData() {
     formData.append('file', file);
 
     try {
-      const res = await fetch('/api/globe-data/upload', {
+      const res = await csrfFetch('/api/globe-data/upload', {
         method: 'POST',
-        credentials: 'include',
         body: formData,
       });
       const data = await res.json().catch(() => ({}));

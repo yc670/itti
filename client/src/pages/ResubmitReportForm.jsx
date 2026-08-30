@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { checkReportTitle, checkReportDescription } from '../utils/formValidation.js';
+import { csrfFetch } from '../api.js';
 
 /**
  * Shown inline under a report in Profile > Publications once it's
@@ -53,9 +54,8 @@ export default function ResubmitReportForm({ report, onResubmitted, onCancel }) 
     if (image) formData.append('image', image);
 
     try {
-      const res = await fetch(`/api/reports/${report.id}/resubmit`, {
+      const res = await csrfFetch(`/api/reports/${report.id}/resubmit`, {
         method: 'POST',
-        credentials: 'include',
         body: formData,
       });
       const data = await res.json().catch(() => ({}));

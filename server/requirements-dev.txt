@@ -1,0 +1,6 @@
+# Extra dependencies for running the test suite locally / in CI only.
+# Never install this in production - pytest and its plugins have no
+# reason to be in the deployed image (see server/Dockerfile, which
+# installs requirements-prod.txt, not this file).
+-r requirements.txt
+pytest==8.3.3

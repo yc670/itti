@@ -30,9 +30,13 @@ const Signup = lazy(() => import('./pages/SignUp.jsx'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword.jsx'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword.jsx'));
 const VerifyResetCode = lazy(() => import('./pages/VerifyResetCode.jsx'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail.jsx'));
+const NotFound = lazy(() => import('./pages/NotFound.jsx'));
+const SearchResults = lazy(() => import('./pages/SearchResults.jsx'));
 const Unavailable = lazy(() => import('./pages/Unavailable.jsx'));
 const Publish = lazy(() => import('./pages/Publish.jsx'));
 const ReportPublish = lazy(() => import('./pages/ReportPublish.jsx'));
+const ReportEdit = lazy(() => import('./pages/ReportEdit.jsx'));
 const PublishGlobeData = lazy(() => import('./pages/PublishGlobeData.jsx'));
 const Docs = lazy(() => import('./pages/Docs.jsx'));
 const Donate = lazy(() => import('./pages/Donate.jsx'));
@@ -43,6 +47,8 @@ const Profile = lazy(() => import('./pages/Profile.jsx'));
 const Settings = lazy(() => import('./pages/Settings.jsx'));
 const PeerReview = lazy(() => import('./pages/PeerReview.jsx'));
 const PeerReviewMine = lazy(() => import('./pages/PeerReviewMine.jsx'));
+const PeerReviewDeletions = lazy(() => import('./pages/PeerReviewDeletions.jsx'));
+const DeletedReportsPage = lazy(() => import('./pages/DeletedReportsPage.jsx'));
 
 /**
  * Gives routed page content a gentle fade-in on navigation instead of
@@ -91,6 +97,7 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/verify" element={<VerifyResetCode />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         {/* Kept for any reset link already emailed before this deploy
             (1-hour TTL) - see reset_password()'s docstring in app.py.
             New requests go through /forgot-password -> /reset-password/verify. */}
@@ -118,6 +125,14 @@ export default function App() {
             reasoning as /reports/publish above. */}
         <Route path="/peer-review" element={<PeerReview />} />
         <Route path="/peer-review/mine" element={<PeerReviewMine />} />
+        {/* Same not-wrapped-in-ProtectedRoute reasoning as the two routes
+            above - PeerReviewDeletions.jsx does its own auth/reviewer-
+            access check. Reviewer/admin only (not publisher) - see the
+            comment atop that page. */}
+        <Route path="/peer-review/deletions" element={<PeerReviewDeletions />} />
+        {/* Not wrapped in ProtectedRoute - DeletedReportsPage.jsx does its
+            own admin check, same pattern as the peer-review pages above. */}
+        <Route path="/admin/deleted-reports" element={<DeletedReportsPage />} />
         <Route
           path="/settings"
           element={
@@ -137,6 +152,16 @@ export default function App() {
             the comment atop ReportPublish.jsx. Linked from the "Publish
             a Report" section of /reports. */}
         <Route path="/reports/publish" element={<ReportPublish />} />
+        {/* Same not-wrapped-in-ProtectedRoute reasoning as above -
+            ReportEdit.jsx does its own auth/ownership/review_status
+            gating, mirroring ReportPublish.jsx. Linked from an Edit
+            option in Profile > Publications and from My Submissions
+            (see ReportCard.jsx's onEdit prop) for a report still
+            pending_review. More specific than the /reports/:id route
+            below (3 segments vs 2), so react-router ranks it first
+            regardless of declaration order - no ambiguity between the
+            two. */}
+        <Route path="/reports/:id/edit" element={<ReportEdit />} />
         {/* A real page (not a same-page modal) so a specific report has
             its own shareable/bookmarkable URL and works with the
             browser back button - see the comment atop ReportView.jsx.
@@ -146,6 +171,12 @@ export default function App() {
             current viewer (see _can_view_report in app.py) - the same
             server-side gate every other report route already relies on. */}
         <Route path="/reports/:id" element={<ReportView />} />
+        <Route path="/search" element={<SearchResults />} />
+
+        {/* Must stay LAST - React Router matches routes in declaration
+            order for a given specificity, and "*" matches literally
+            anything, so any route after this one would be unreachable. */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
       </Suspense>
       </PageTransition>

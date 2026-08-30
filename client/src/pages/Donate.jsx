@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { csrfFetch } from '../api.js';
 import { checkEmail, checkName, checkDonationAmount } from '../utils/formValidation.js';
 import Reveal from '../components/Reveal.jsx';
 import SEO from '../components/SEO.jsx';
@@ -156,7 +157,7 @@ export default function Donate() {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/donations/payment-intent', {
+      const res = await csrfFetch('/api/donations/payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

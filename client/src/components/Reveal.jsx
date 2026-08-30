@@ -29,15 +29,16 @@ function mergeRefs(...refs) {
  * which is the usual expectation for this kind of effect and avoids
  * content flickering in and out while scrolling up and down.
  *
- * Scoped to an allowlist of pages ("/" and the Reports page/its publish
- * sub-page) - every <Reveal> elsewhere in the app (there are ~24 pages
- * using it) renders its child immediately, fully visible, with no
- * observer and no transition. Rather than stripping <Reveal> out of
- * every one of those call sites, this one component just no-ops itself
- * off the other pages, so the cascading scroll-reveal effect only
- * applies where it's been explicitly opted into.
+ * Scoped to an allowlist of pages ("/" and the Reports page/its browse
+ * and publish sub-pages, plus Peer Review) - every <Reveal> elsewhere
+ * in the app (there are ~24 pages using it) renders its child
+ * immediately, fully visible, with no observer and no transition.
+ * Rather than stripping <Reveal> out of every one of those call sites,
+ * this one component just no-ops itself off the other pages, so the
+ * cascading scroll-reveal effect only applies where it's been
+ * explicitly opted into.
  */
-const CASCADE_PATHS = ['/', '/reports', '/reports/publish', '/peer-review', '/peer-review/mine'];
+const CASCADE_PATHS = ['/', '/reports', '/reports/browse', '/reports/publish', '/peer-review', '/peer-review/mine'];
 
 export default function Reveal({ children, delay = 0 }) {
   const ownRef = useRef(null);

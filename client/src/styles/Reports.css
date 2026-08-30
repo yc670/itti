@@ -326,6 +326,27 @@
   gap: 16px;
 }
 
+.report-card-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-card-edit {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--text-mid);
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.report-card-edit:hover {
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+
 .report-card-read {
   background: var(--cyan);
   border: none;
@@ -485,6 +506,153 @@
 
 /* Submit/cancel now use the sitewide .btn/.btn-primary/.btn-secondary
    utility classes (see App.css) rather than their own definitions. */
+
+/* ---------- Live report-view-style preview (ReportPreviewCard, shown
+   at the bottom of ReportUploadForm and ReportEditForm). Deliberately
+   a scaled-down version of .report-view-page/.report-view-header
+   below (same panel look as the real /reports/:id page), not
+   .report-card - see ReportPreviewCard.jsx's own comment for why. ---------- */
+
+.report-upload-preview-section {
+  margin: 4px 0 8px 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.report-upload-preview-title {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+.report-upload-preview-hint {
+  margin: 0 0 14px 0;
+  color: var(--text-low);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.report-preview-card-wrap {
+  position: relative;
+  max-width: 420px;
+}
+.report-preview-ribbon {
+  position: absolute;
+  top: -9px;
+  left: 14px;
+  z-index: 1;
+  background: var(--cyan);
+  color: var(--bg-deep);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.report-preview-view-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.report-preview-view-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.report-preview-view-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+  background: var(--bg-deep);
+  border: 1px solid var(--line);
+}
+.report-preview-view-header-text {
+  min-width: 0;
+  flex: 1;
+}
+.report-preview-view-title {
+  margin: 0 0 2px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-hi);
+  overflow-wrap: break-word;
+}
+.report-preview-view-author {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-mid);
+}
+.report-preview-view-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.report-preview-view-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-low);
+}
+.report-preview-view-download {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-low);
+}
+.report-preview-view-description {
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-mid);
+}
+
+/* ---------- Edit form's "current file/image" context
+   (ReportEditForm - shows what's already on the report being edited,
+   distinct from the preview card above, which reflects the form's
+   CURRENT state rather than what's saved) ---------- */
+
+.report-upload-current-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -4px 0 8px 0;
+  padding: 8px 10px;
+  background: rgba(21,27,38,0.03);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--text-mid);
+}
+.report-upload-current-file strong {
+  color: var(--text-hi);
+}
+.report-upload-current-image {
+  width: 160px;
+  height: 84px;
+  object-fit: contain;
+  background: var(--bg-deep);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: block;
+  margin: -4px 0 8px 0;
+}
+.report-upload-current-image-empty {
+  margin: -4px 0 8px 0;
+  color: var(--text-low);
+  font-size: 12.5px;
+  font-style: italic;
+}
 
 /* ---------- Report view page (/reports/:id) ---------- */
 /* Replaced the old inline-modal viewer (ReportViewerModal, an overlay

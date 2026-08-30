@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { csrfFetch } from '../api.js';
 
 // Must stay in sync with REQUIRED_APPROVALS/REQUIRED_REJECTIONS in
 // server/models/report.py - the server is the source of truth for
@@ -62,9 +63,8 @@ export default function PeerReviewPanel({ report, currentUser, onDecided }) {
     setSubmitting(decision);
     setError(null);
     try {
-      const res = await fetch(`/api/reports/${report.id}/review`, {
+      const res = await csrfFetch(`/api/reports/${report.id}/review`, {
         method: 'POST',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision, comment: comment.trim() || undefined }),
       });

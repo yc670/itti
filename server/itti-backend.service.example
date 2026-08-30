@@ -1,0 +1,48 @@
+# itti-backend.service.example — systemd unit for the ITTI Flask backend
+# on a self-managed Droplet/VPS.
+#
+# This is a TEMPLATE, not something deploy-server.sh installs for you —
+# copy it once, fill in the placeholders, and enable it manually:
+#
+#   sudo cp itti-backend.service.example /etc/systemd/system/itti-backend.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable itti-backend
+#   sudo systemctl start itti-backend
+#
+# After that, deploy-server.sh's `systemctl restart itti-backend` calls
+# will work. Matches the same gunicorn flags server/Dockerfile uses for
+# the App Platform path, for consistency between the two deployment
+# targets.
+
+[Unit]
+Description=ITTI website backend (Flask/gunicorn)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+# <PLACEHOLDER> - a dedicated non-root user, not the account you SSH in as
+User=<PLACEHOLDER-deploy-user>
+Group=<PLACEHOLDER-deploy-user>
+WorkingDirectory=/opt/itti_website/server
+EnvironmentFile=/opt/itti_website/server/.env
+ExecStart=/opt/itti_website/server/venv/bin/gunicorn \
+    --bind 127.0.0.1:8080 \
+    --workers 2 \
+    --timeout 60 \
+    --max-requests 500 \
+    --max-requests-jitter 50 \
+    app:app
+Restart=on-failure
+RestartSec=5
+
+# Hardening - safe defaults for a Flask app that doesn't need broad
+# filesystem/network access beyond its own working directory and the
+# database/Brevo/Stripe API calls it already makes over HTTPS.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/itti_website/server
+
+[Install]
+WantedBy=multi-user.target

@@ -22,5 +22,11 @@ export default defineConfig(({ mode }) => {
         "/api": "http://localhost:5000",
       },
     },
+    test: {
+      environment: "jsdom",
+      setupFiles: ["./src/test/setup.js"],
+      globals: true,
+      css: false,
+    },
   };
 });

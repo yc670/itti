@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { fetchAdminUsers, updateUserRoles } from '../api.js';
 
 const PAGE_SIZE = 20;
-const ROLE_OPTIONS = ['basic', 'publisher', 'admin'];
+const ROLE_OPTIONS = ['basic', 'publisher', 'reviewer', 'admin'];
 
 /**
  * Admin-only account list backing the Control tab's role management -

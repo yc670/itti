@@ -12,7 +12,7 @@ import Avatar from '../components/Avatar.jsx';
 import {
   fetchSavedObservatoryCharts, deleteSavedObservatoryChart,
   fetchFavoriteReports, unfavoriteReport,
-  fetchMyReports,
+  fetchMyReports, csrfFetch,
 } from '../api.js';
 import '../styles/Profile.css';
 
@@ -177,7 +177,7 @@ export default function Profile() {
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
       try {
-        await fetch(`/api/notifications/${notification.id}/read`, { method: 'POST', credentials: 'include' });
+        await csrfFetch(`/api/notifications/${notification.id}/read`, { method: 'POST' });
       } catch {
         // Non-critical - worst case it shows as unread again next load.
       }
@@ -192,7 +192,7 @@ export default function Profile() {
     setUnreadCount(0);
     setSelectedNotificationIds(new Set());
     try {
-      await fetch('/api/notifications/read-all', { method: 'POST', credentials: 'include' });
+      await csrfFetch('/api/notifications/read-all', { method: 'POST' });
     } catch {
       loadNotifications();
       loadUnreadCount();
@@ -226,9 +226,8 @@ export default function Profile() {
     setSelectedNotificationIds(new Set());
     setBulkActionPending(true);
     try {
-      await fetch('/api/notifications/read', {
+      await csrfFetch('/api/notifications/read', {
         method: 'POST',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids }),
       });
@@ -252,9 +251,8 @@ export default function Profile() {
     setSelectedNotificationIds(new Set());
     setBulkActionPending(true);
     try {
-      await fetch('/api/notifications/delete', {
+      await csrfFetch('/api/notifications/delete', {
         method: 'POST',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids }),
       });
@@ -366,7 +364,7 @@ export default function Profile() {
                 {!favoritesError && favoriteReports !== null && favoriteReports.length === 0 && (
                   <div className="profile-empty">
                     <p>No favorited reports yet.</p>
-                    <Link to="/reports" className="btn btn-secondary">Browse Reports</Link>
+                    <Link to="/reports/browse" className="btn btn-secondary">Browse Reports</Link>
                   </div>
                 )}
                 {!favoritesError && favoriteReports !== null && favoriteReports.length > 0 && (
@@ -438,6 +436,7 @@ export default function Profile() {
                           );
                           const needsChanges = report.review_status === 'changes_requested';
                           const isRejected = report.review_status === 'rejected';
+                          const isPending = report.review_status === 'pending_review';
                           return (
                             <div key={report.id} className="profile-publication-item">
                               <div className="profile-publication-row">
@@ -461,6 +460,15 @@ export default function Profile() {
                                       onClick={() => setResubmittingId(report.id)}
                                     >
                                       Resubmit
+                                    </button>
+                                  )}
+                                  {isPending && (
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary profile-publication-resubmit-btn"
+                                      onClick={() => navigate(`/reports/${report.id}/edit`)}
+                                    >
+                                      Edit
                                     </button>
                                   )}
                                 </div>

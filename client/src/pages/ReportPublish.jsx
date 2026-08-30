@@ -97,7 +97,20 @@ export default function ReportPublish() {
         </Reveal>
       ) : (
         <Reveal delay={30}>
-          <ReportUploadForm onUploaded={setUploaded} onCancel={() => navigate('/reports')} />
+          {/* Reveal attaches a ref (for its IntersectionObserver) and an
+              opacity/transform className to its single child - both of
+              which need a real DOM element to land on. ReportUploadForm
+              is a plain function component that doesn't forward either,
+              so wrapping it directly in <Reveal> silently drops the ref
+              (React warns: "Function components cannot be given refs")
+              and never applies the fade-in class. This div is that real
+              element instead - same fix needed in ControlPanel.jsx,
+              which wraps UploadSection/FellowsControl/
+              ReportCategoryControl/AccessLevelPanel in <Reveal> the same
+              unsafe way. */}
+          <div>
+            <ReportUploadForm onUploaded={setUploaded} onCancel={() => navigate('/reports')} />
+          </div>
         </Reveal>
       )}
     </div>

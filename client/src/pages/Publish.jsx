@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Reveal from '../components/Reveal.jsx';
 import SEO from '../components/SEO.jsx';
+import { csrfFetch } from '../api.js';
 import '../styles/Publish.css';
 
 /**
@@ -33,9 +34,8 @@ export default function Publish() {
     formData.append('file', file);
 
     setStatus('uploading…');
-    const res = await fetch('/api/documents', {
+    const res = await csrfFetch('/api/documents', {
       method: 'POST',
-      credentials: 'include',
       body: formData
     });
     if (res.ok) {
@@ -49,9 +49,8 @@ export default function Publish() {
   }
 
   async function handleDelete(id) {
-    const res = await fetch(`/api/documents/${id}`, {
-      method: 'DELETE',
-      credentials: 'include'
+    const res = await csrfFetch(`/api/documents/${id}`, {
+      method: 'DELETE'
     });
     if (res.ok) loadDocuments();
   }

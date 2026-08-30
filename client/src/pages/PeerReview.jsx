@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import ReportCard from '../components/ReportCard.jsx';
 import PeerReviewPanel from '../components/PeerReviewPanel.jsx';
-import PublisherAccessGate from '../components/PublisherAccessGate.jsx';
 import Reveal from '../components/Reveal.jsx';
 import SEO from '../components/SEO.jsx';
 import '../styles/PeerReview.css';
@@ -11,12 +10,12 @@ import '../styles/PeerReview.css';
 /**
  * Peer Review queue - "all pending reports to be reviewed" across
  * every publisher, reachable at /peer-review. Not wrapped in
- * <ProtectedRoute> - it does its own auth/role check via
- * PublisherAccessGate so a signed-out visitor or a non-publisher sees
- * an explanation instead of a silent redirect (see the comment atop
- * PublisherAccessGate.jsx). Server-side enforcement is the real gate
- * (@roles_required("publisher", "admin") on every /api/reports/...
- * review endpoint).
+ * <ProtectedRoute> - it does its own auth/role check inline (two
+ * separate gate screens below: logged-out vs. logged-in-but-not-a-
+ * publisher) so a signed-out visitor or a non-publisher sees an
+ * explanation instead of a silent redirect. Server-side enforcement
+ * is the real gate (@roles_required("publisher", "admin") on every
+ * /api/reports/... review endpoint).
  *
  * Paired with PeerReviewMine.jsx ("My Submissions", /peer-review/mine)
  * - both pages read the same GET /api/reports/pending /
@@ -126,6 +125,11 @@ export default function PeerReview() {
         <Link className="peer-review-nav-tab" to="/peer-review/mine">
           My Submissions
         </Link>
+        {(user?.role === 'reviewer' || user?.role === 'admin') && (
+          <Link className="peer-review-nav-tab" to="/peer-review/deletions">
+            Deletion Requests
+          </Link>
+        )}
       </nav>
 
       {error && <p className="peer-review-error">{error}</p>}

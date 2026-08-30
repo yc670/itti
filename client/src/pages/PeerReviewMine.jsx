@@ -4,16 +4,19 @@ import { useAuth } from '../context/AuthContext.jsx';
 import ReportCard from '../components/ReportCard.jsx';
 import PeerReviewPanel from '../components/PeerReviewPanel.jsx';
 import PublisherAccessGate from '../components/PublisherAccessGate.jsx';
+import DeleteReportModal from '../components/DeleteReportModal.jsx';
 import Reveal from '../components/Reveal.jsx';
 import SEO from '../components/SEO.jsx';
+import { requestReportDeletion } from '../api.js';
 import '../styles/PeerReview.css';
 
 /**
  * "My Submissions" - the reports the logged-in user has uploaded
- * themselves, at every review_status (pending, published, rejected),
- * reachable at /peer-review/mine. Same self-guard pattern as
- * PeerReview.jsx (see PublisherAccessGate.jsx) since it's linked from
- * the same places and needs the same login/access-level messaging.
+ * themselves, at every review_status (pending, published, rejected,
+ * deletion_requested), reachable at /peer-review/mine. Same self-guard
+ * pattern as PeerReview.jsx (see PublisherAccessGate.jsx) since it's
+ * linked from the same places and needs the same login/access-level
+ * messaging.
  *
  * Reads GET /api/reports/mine (any review_status, this user's own)
  * rather than filtering the shared /api/reports/pending list, so a
@@ -26,8 +29,11 @@ import '../styles/PeerReview.css';
  *
  * Deleting a report here (ReportCard's own Delete button, shown since
  * canManage is true for every report on this page - it's always the
- * viewer's own) soft-deletes it via the same DELETE /api/reports/<id>
- * used everywhere else, which also removes it from the shared queue.
+ * viewer's own) opens DeleteReportModal, which branches on
+ * review_status: a published report needs a typed reason and starts
+ * the reviewer-approval watching period instead of deleting outright
+ * (see docs/ACCESS_LEVELS.md's "Report deletion" section); anything
+ * else (never went public) still deletes instantly.
  */
 export default function PeerReviewMine() {
   const { user, isAuthenticated, isPublisher, loading: authLoading } = useAuth();
@@ -36,6 +42,7 @@ export default function PeerReviewMine() {
   const highlightId = searchParams.get('highlight');
   const [mine, setMine] = useState(null);
   const [error, setError] = useState(null);
+  const [deletingReport, setDeletingReport] = useState(null);
 
   function loadMine() {
     fetch('/api/reports/mine', { credentials: 'include' })
@@ -59,17 +66,21 @@ export default function PeerReviewMine() {
     loadMine();
   }
 
-  async function handleDelete(reportId) {
+  async function handleInstantDelete(reportId) {
     const res = await fetch(`/api/reports/${reportId}`, {
       method: 'DELETE',
-      credentials: 'include',
     });
     if (res.ok) {
       loadMine();
     } else {
       const data = await res.json().catch(() => ({}));
-      setError(data.description || data.error || 'Could not remove report.');
+      throw new Error(data.description || data.error || 'Could not remove report.');
     }
+  }
+
+  async function handleRequestDeletion(reportId, reason) {
+    await requestReportDeletion(reportId, reason);
+    loadMine();
   }
 
   if (authLoading) return null;
@@ -108,6 +119,11 @@ export default function PeerReviewMine() {
           Awaiting Review
         </Link>
         <span className="peer-review-nav-tab is-active">My Submissions</span>
+        {(user?.role === 'reviewer' || user?.role === 'admin') && (
+          <Link className="peer-review-nav-tab" to="/peer-review/deletions">
+            Deletion Requests
+          </Link>
+        )}
       </nav>
 
       {error && <p className="peer-review-error">{error}</p>}
@@ -132,7 +148,12 @@ export default function PeerReviewMine() {
                     id={`peer-review-report-${report.id}`}
                     className={`peer-review-item${String(report.id) === highlightId ? ' peer-review-item-highlight' : ''}`}
                   >
-                    <ReportCard report={report} canManage onDelete={handleDelete} onRead={(r) => navigate(`/reports/${r.id}`)} />
+                    {report.review_status === 'deletion_requested' && (
+                      <p className="deletion-requested-banner">
+                        Deletion requested - awaiting a reviewer's decision. It stays published until then.
+                      </p>
+                    )}
+                    <ReportCard report={report} canManage onDelete={setDeletingReport} onRead={(r) => navigate(`/reports/${r.id}`)} />
                     <PeerReviewPanel report={report} currentUser={user} onDecided={handleDecided} />
                   </div>
                 ))}
@@ -141,6 +162,16 @@ export default function PeerReviewMine() {
           )}
         </section>
       </Reveal>
+
+      {deletingReport && (
+        <DeleteReportModal
+          report={deletingReport}
+          canInstantDelete={user?.role === 'admin'}
+          onInstantDelete={() => handleInstantDelete(deletingReport.id)}
+          onRequestDeletion={(reason) => handleRequestDeletion(deletingReport.id, reason)}
+          onClose={() => setDeletingReport(null)}
+        />
+      )}
     </div>
   );
 }

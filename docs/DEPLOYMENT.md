@@ -1,10 +1,14 @@
 # Deploying ITTI to DigitalOcean
 
 This uses **DigitalOcean App Platform**, not a raw Droplet. App Platform builds
-your backend from the `server/Dockerfile` already in this repo, builds your
-frontend as a static site, and provisions a managed Postgres database for
-you — no manual server/nginx/systemd setup, and it auto-redeploys on every
-push to your `database` branch.
+your backend from the `server/Dockerfile` already in this repo and builds your
+frontend as a static site — no manual server/nginx/systemd setup, and it
+auto-redeploys on every push to your `database` branch.
+
+The database is a separate step (Step 2 below) and deliberately NOT the
+"dev database" App Platform will offer to create automatically if you skip
+that step - a dev database has **no backup support at all** (see "Database
+backups" further down for why this matters and what to do instead).
 
 If you'd rather manage your own Ubuntu server (more control, more to
 maintain — nginx, systemd, SSL certs, OS patching all become your job),
@@ -27,7 +31,33 @@ Two files were added to make this deployable:
 
 Commit and push both to your `database` branch before continuing.
 
-## Step 2 — Create the app
+## Step 2 — Create the database cluster (before the app, not through it)
+
+Do this now, separately from creating the app in Step 3 - `app.yaml`'s
+`cluster_name` placeholder needs a real cluster to point at, and the app
+spec won't create one for you (see "Database backups" further down for
+why this order matters).
+
+1. In DigitalOcean → **Databases** (left sidebar) → **Create Database Cluster**
+2. Choose **PostgreSQL**, version **16** (matching `app.yaml`)
+3. Pick a plan — the smallest available is fine to start; you can resize later
+   without downtime
+4. Pick the same region you'll deploy the app to (App Platform and the
+   database don't need to be in the same region, but it's faster and
+   avoids a cross-region data-transfer cost if they are)
+5. Give it a name — this is the value that goes in `app.yaml`'s
+   `cluster_name` field. Whatever you pick, use the exact same string in
+   both the DigitalOcean UI and the spec
+6. Click **Create Database Cluster** and wait for it to finish provisioning
+   (a few minutes)
+7. Once created, go to the cluster's **Settings** tab and confirm
+   **Automatic backups** — this should already be on by default for a new
+   Managed Database, but it's worth checking now while you're here rather
+   than discovering it was off after you actually need a restore. See
+   "Database backups" below for what this actually gives you and how to
+   restore from one.
+
+## Step 3 — Create the app
 
 1. Log into DigitalOcean → **Apps** (left sidebar) → **Create App**
 2. Choose **GitHub** as the source, authorize DigitalOcean to access your
@@ -51,19 +81,25 @@ Commit and push both to your `database` branch before continuing.
      (`BREVO_FROM_NAME` already has a sensible default, no need to touch it)
    - `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` → only if you're using
      the donations feature; delete those two lines entirely if not
-5. Click through the remaining screens (region, plan). For the database,
-   the spec already requests Postgres 16 — DigitalOcean will show you a
-   monthly cost estimate before you confirm
+   - `cluster_name` under `databases:` → the exact name you gave the
+     database cluster you created in Step 2 - **do not skip this**; without
+     it, DigitalOcean silently creates a new, separate "dev database"
+     instead of connecting to the one you just made, and dev databases
+     can't be backed up at all (see "Database backups" below)
+5. Click through the remaining screens (region, plan). Since `cluster_name`
+   is set, DigitalOcean will connect the app to your existing cluster from
+   Step 2 rather than offering to create a new database here
 6. Click **Create Resources**
 
-## Step 3 — Wait for the first deploy
+## Step 4 — Wait for the first deploy
 
 DigitalOcean will:
 1. Build the backend Docker image (installs `requirements-prod.txt`, runs
    `alembic upgrade head`, starts `gunicorn`)
-2. Provision the Postgres database and inject `DATABASE_URL` automatically
-   into the backend's environment (this is what `${db.DATABASE_URL}` in the
-   spec resolves to — you never type the actual connection string yourself)
+2. Connect to the database cluster you created in Step 2 and inject
+   `DATABASE_URL` automatically into the backend's environment (this is
+   what `${db.DATABASE_URL}` in the spec resolves to — you never type the
+   actual connection string yourself)
 
 The frontend is **not** built here — see "Building and deploying the
 frontend" below for how that works instead.
@@ -72,7 +108,7 @@ This takes a few minutes the first time. Watch the build logs in the
 DigitalOcean dashboard; if the build fails, the logs will show exactly
 which step broke.
 
-## Step 4 — Verify it's actually working
+## Step 5 — Verify it's actually working
 
 Once deployed, DigitalOcean gives you a URL like
 `https://itti-website-xxxxx.ondigitalocean.app`. Check:
@@ -85,7 +121,7 @@ Should return `{"status": "ok"}`. Then open the URL in a browser and
 confirm the frontend loads and can reach the API (try loading the globe,
 or the Reports page).
 
-## Step 5 — Point your real domain at it (optional)
+## Step 6 — Point your real domain at it (optional)
 
 1. In the App Platform dashboard → your app → **Settings** → **Domains**
 2. Add your domain (e.g. `itti.org`)
@@ -97,7 +133,7 @@ or the Reports page).
    since the backend's CORS policy is locked to whatever `CLIENT_ORIGIN` is
    set to
 
-## Step 6 — Every future deploy
+## Step 7 — Every future deploy
 
 Because `deploy_on_push: true` is set in the spec, pushing to `database`
 automatically triggers a new backend deploy. No manual redeploy step
@@ -106,6 +142,95 @@ Dockerfile's `CMD` runs `alembic upgrade head` before starting
 `gunicorn` on every deploy.
 
 The frontend deploys separately — see below.
+
+---
+
+# Database backups
+
+**This only works if you followed Step 2 above** and the app is connected
+to a real Managed Database cluster (`cluster_name` set in `app.yaml`) — a
+"dev database" (what you get if `cluster_name` is missing or blank) cannot
+be backed up at all. There is no workaround for a dev database beyond
+switching to a Managed Database; DigitalOcean doesn't offer any backup
+mechanism for dev databases, automated or manual, through the platform
+itself.
+
+## Confirm backups are actually on
+
+1. DigitalOcean → **Databases** → your cluster → **Settings** tab
+2. Look for **Automatic backups** — this defaults to on for a new Managed
+   Database, but confirm it here rather than assuming. If somehow off,
+   enable it
+3. Note the retention window shown — DigitalOcean's managed Postgres
+   backups are daily, with **7 days of retention** by default (not
+   configurable to a longer window through the standard managed-database
+   product; see "Extra retention or offsite copies" below if 7 days isn't
+   enough for your risk tolerance)
+
+## What this actually protects you from
+
+Automated backups + point-in-time recovery (both included, no extra
+setup) mean you can restore the database to any moment within the last 7
+days — not just to whenever last night's backup happened to run. This
+covers:
+- Accidental data loss (a bad manual query, a bug that deletes more than
+  intended)
+- A broken migration - see `server/fix_reports_schema.py` in this repo
+  for the kind of one-off repair script this project has already needed
+  once; a restore is the fallback if a future repair script goes wrong
+  instead of fixing things
+- The underlying database instance failing outright
+
+It does **not** protect against:
+- A breach of your DigitalOcean account itself (the backups live inside
+  DigitalOcean, on the same platform as the primary - see "Extra
+  retention or offsite copies" below if this is a real concern for you)
+- Data corruption that isn't caught for more than 7 days after it happens
+  (by the time you notice, the good backup has rolled off the retention
+  window)
+
+## How to actually restore from one
+
+1. DigitalOcean → **Databases** → your cluster → **Backups** tab (exact
+   tab name/location can shift slightly between DigitalOcean UI versions -
+   look for "Backups" or "Restore" near the cluster's overview)
+2. Choose either a specific daily backup, or a precise point in time
+   within the retention window (point-in-time recovery)
+3. **Restoring creates a NEW database cluster** with the recovered data -
+   it does not overwrite your existing live cluster in place. After the
+   restore finishes, you'd update `cluster_name` in `app.yaml` (and
+   redeploy) to point the app at the new cluster, or manually migrate the
+   data from the restored cluster back into the original one, depending
+   on the situation
+4. **Test this before you actually need it.** An unverified backup
+   strategy is not a backup strategy - restore into a throwaway cluster
+   at least once so you know the process actually works and roughly how
+   long it takes, rather than discovering a problem with it during an
+   actual incident
+
+## Extra retention or offsite copies (optional, beyond the built-in 7 days)
+
+If 7-day retention isn't enough, or you want a copy that doesn't live
+inside DigitalOcean at all, add your own periodic `pg_dump` on top of the
+built-in backups rather than replacing them:
+
+```bash
+# Run this from anywhere with network access to the database and the
+# `DATABASE_URL` value (DigitalOcean → your cluster → Connection Details) -
+# a local machine via cron, a scheduled GitHub Action, or a small
+# always-on box are all reasonable places to run this from.
+pg_dump "$DATABASE_URL" | gzip > "itti-backup-$(date +%Y%m%d-%H%M%S).sql.gz"
+```
+
+Upload the resulting file to DigitalOcean Spaces (the same bucket
+mechanism already used for uploads/frontend elsewhere in this guide, or a
+separate one) or any other offsite storage - the point is a copy that
+survives even if your entire DigitalOcean account became inaccessible.
+This is a genuine addition on top of the built-in backups, not a
+replacement for them - it's slower to restore from (a plain SQL dump, not
+a live cluster you can point traffic at directly) and won't give you
+point-in-time recovery on its own, but covers the offsite-copy and
+longer-retention gaps the built-in 7-day window doesn't.
 
 ---
 

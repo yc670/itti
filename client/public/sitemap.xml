@@ -17,6 +17,10 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://ittiglobal.org/reports/browse</loc>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://ittiglobal.org/country-profiles</loc>
     <priority>0.8</priority>
   </url>

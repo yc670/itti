@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { favoriteReport, unfavoriteReport, fetchFavoriteReportIds } from '../api.js';
+import { favoriteReport, unfavoriteReport, fetchFavoriteReportIds, requestReportDeletion } from '../api.js';
 import Reveal from '../components/Reveal.jsx';
 import SEO from '../components/SEO.jsx';
+import DeleteReportModal from '../components/DeleteReportModal.jsx';
 import { isBadRequest } from '../utils/apiError';
 import '../styles/Reports.css';
 
@@ -37,6 +38,7 @@ export default function ReportView() {
   const [docState, setDocState] = useState({ status: 'loading', html: null, error: null });
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteBusy, setFavoriteBusy] = useState(false);
+  const [deletingReport, setDeletingReport] = useState(false); // just a flag here - only one report on this page
 
   const fileUrl = report ? `/api/reports/${report.id}/file` : null;
   const isPdf = report?.file_type === 'pdf';
@@ -44,7 +46,7 @@ export default function ReportView() {
 
   const canManage =
     Boolean(report) &&
-    (user?.role === 'admin' || (user?.role === 'publisher' && user?.id === report.uploaded_by));
+    (user?.role === 'admin' || (['publisher', 'reviewer'].includes(user?.role) && user?.id === report.uploaded_by));
 
   useEffect(() => {
     let cancelled = false;
@@ -135,15 +137,19 @@ export default function ReportView() {
     }
   }
 
-  async function handleDelete() {
-    if (!report) return;
+  async function handleInstantDelete() {
     const res = await fetch(`/api/reports/${report.id}`, { method: 'DELETE', credentials: 'include' });
     if (res.ok) {
       navigate('/reports');
     } else {
       const data = await res.json().catch(() => ({}));
-      setLoadError(data.description || data.error || 'Could not delete report.');
+      throw new Error(data.description || data.error || 'Could not delete report.');
     }
+  }
+
+  async function handleRequestDeletion(reason) {
+    const updated = await requestReportDeletion(report.id, reason);
+    setReport(updated); // stays on this page - the report is still visible (review_status is now "deletion_requested")
   }
 
   return (
@@ -174,6 +180,11 @@ export default function ReportView() {
                 <div className="report-view-header-text">
                   <h1 className="report-view-title" title={report.title}>{report.title}</h1>
                   <p className="report-view-author">By {report.author} · {report.category}</p>
+                  {report.review_status === 'deletion_requested' && (
+                    <p className="deletion-requested-banner">
+                      Deletion requested - awaiting a reviewer's decision. It stays published until then.
+                    </p>
+                  )}
                 </div>
                 <div className="report-view-header-actions">
                   {isAuthenticated && (
@@ -197,7 +208,7 @@ export default function ReportView() {
                     Download
                   </a>
                   {canManage && (
-                    <button type="button" className="report-card-delete" onClick={handleDelete}>
+                    <button type="button" className="report-card-delete" onClick={() => setDeletingReport(true)}>
                       Delete
                     </button>
                   )}
@@ -229,6 +240,16 @@ export default function ReportView() {
           </Reveal>
         )}
       </div>
+
+      {deletingReport && report && (
+        <DeleteReportModal
+          report={report}
+          canInstantDelete={user?.role === 'admin'}
+          onInstantDelete={handleInstantDelete}
+          onRequestDeletion={handleRequestDeletion}
+          onClose={() => setDeletingReport(false)}
+        />
+      )}
     </div>
   );
 }

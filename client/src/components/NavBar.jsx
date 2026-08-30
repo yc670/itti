@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import Avatar from './Avatar.jsx';
+import SiteSearchBar from './SiteSearchBar.jsx';
 
 // How often to re-poll the unread notification count while signed in,
 // so the glowing dot can appear without the user having to reload or
@@ -205,6 +206,8 @@ export default function NavBar() {
             </li>
           ))}
         </ul>
+
+        <SiteSearchBar />
 
         <div className="navbar-auth">
           {isAuthenticated ? (

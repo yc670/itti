@@ -40,8 +40,12 @@ from .database import Base, Session
 from .report import (
     Report, REQUIRED_APPROVALS, REQUIRED_REJECTIONS, get_author_name,
     REVIEW_STATUS_PUBLISHED, REVIEW_STATUS_REJECTED, REVIEW_STATUS_PENDING,
+    REVIEW_STATUS_DELETION_REQUESTED, delete_report, cancel_deletion_request,
 )
-from .notification import create_notification, TYPE_REPORT_PUBLISHED, TYPE_REPORT_REJECTED
+from .notification import (
+    create_notification, TYPE_REPORT_PUBLISHED, TYPE_REPORT_REJECTED,
+    TYPE_REPORT_DELETION_APPROVED, TYPE_REPORT_DELETION_DENIED,
+)
 
 DECISION_APPROVE = "approve"
 DECISION_REJECT = "reject"
@@ -298,5 +302,83 @@ def get_reviewer_decision(report_id, reviewer_id, version):
             .first()
         )
         return review.decision if review else None
+    finally:
+        session.close()
+
+
+class DeletionReviewError(ValueError):
+    """Raised for any rule violation in record_deletion_review() - message is always safe to show the reviewer."""
+
+
+def record_deletion_review(report_id, reviewer_id, decision):
+    """
+    Records a reviewer/admin's decision on a PUBLISHER's request to
+    delete their own published report (see request_report_deletion()
+    in report.py). Unlike record_review() above, this is NOT a vote -
+    a single decision, either way, is final immediately:
+      - decision="approve" -> delete_report(report_id,
+        via="deletion_review") - soft-deletes it, resets
+        review_status back to "published" (see that function's own
+        comment for why), notifies the uploader
+      - decision="deny" -> cancel_deletion_request(report_id) - back to
+        "published", stays visible (it never left), notifies the
+        uploader
+
+    This does not reuse the ReportReview table at all - that table is
+    specifically approve/reject votes toward PUBLISHING a report
+    (scoped by version, counted toward REQUIRED_APPROVALS/
+    REQUIRED_REJECTIONS), a fundamentally different decision from
+    "should this already-published report be taken down". No new table
+    is needed for the (much simpler) one-decision-is-final deletion
+    case - report.py's pending_deletion_reason /
+    pending_deletion_requested_at already capture what's asked, and the
+    outcome is just the review_status transition itself; there's no
+    history of multiple reviewers' individual votes to preserve the way
+    ReportReview preserves them for publishing.
+
+    Raises DeletionReviewError (safe, user-facing message) if the
+    report isn't currently deletion_requested, or if the requester is
+    the report's own uploader (self-review isn't allowed here either,
+    same rule as record_review() - the whole point of this tier is a
+    second set of eyes). Returns the updated Report.
+    """
+    if decision not in (DECISION_APPROVE, "deny"):
+        raise DeletionReviewError("Decision must be 'approve' or 'deny'.")
+
+    session = Session()
+    try:
+        report = session.query(Report).filter(Report.id == report_id).first()
+        if report is None:
+            raise DeletionReviewError("Report not found.")
+        if report.review_status != REVIEW_STATUS_DELETION_REQUESTED:
+            raise DeletionReviewError("This report isn't currently awaiting a deletion decision.")
+        if report.uploaded_by == reviewer_id:
+            raise DeletionReviewError("You cannot decide a deletion request on your own report.")
+
+        title = report.title
+        uploaded_by = report.uploaded_by
+    finally:
+        session.close()
+
+    if decision == DECISION_APPROVE:
+        delete_report(report_id, via="deletion_review")
+        create_notification(
+            user_id=uploaded_by,
+            report_id=report_id,
+            type=TYPE_REPORT_DELETION_APPROVED,
+            message=f'Your request to delete "{title}" was approved. It has been removed from the public Reports page.',
+        )
+    else:
+        cancel_deletion_request(report_id)
+        create_notification(
+            user_id=uploaded_by,
+            report_id=report_id,
+            type=TYPE_REPORT_DELETION_DENIED,
+            message=f'Your request to delete "{title}" was denied. It remains published.',
+        )
+
+    session = Session()
+    try:
+        return session.query(Report).filter(Report.id == report_id).first()
     finally:
         session.close()

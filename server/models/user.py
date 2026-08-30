@@ -9,11 +9,20 @@ email/password) — see docs/ACCESS_LEVELS.md for the full design.
   ROLE_PUBLISHER — fellows/staff who can upload/publish documents. Never
                    set by /api/auth/google or /api/auth/signup; granted
                    separately via promote_user.py.
+  ROLE_REVIEWER  — a tier above publisher, below admin. Everything a
+                   publisher can do, plus deciding a publisher's
+                   deletion requests on their own published reports
+                   (see record_deletion_review() in
+                   models/report_review.py) - a single reviewer
+                   decision is final either way (unlike the 3-approval/
+                   2-rejection publish workflow), so this tier exists
+                   to put that single point of decision in the hands of
+                   someone other than the uploader's peers.
 """
 
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, DateTime, or_
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, or_
 from sqlalchemy.orm import relationship
 
 from .database import Base, Session
@@ -24,8 +33,9 @@ STATUS_HIDDEN = 0
 
 ROLE_BASIC = "basic"
 ROLE_PUBLISHER = "publisher"
+ROLE_REVIEWER = "reviewer"
 ROLE_ADMIN = "admin"
-VALID_ROLES = {ROLE_BASIC, ROLE_PUBLISHER, ROLE_ADMIN}
+VALID_ROLES = {ROLE_BASIC, ROLE_PUBLISHER, ROLE_REVIEWER, ROLE_ADMIN}
 
 
 class User(Base):
@@ -50,6 +60,14 @@ class User(Base):
     # 1 = visible/active (default), 0 = hidden (soft-deleted account).
     # The row is never removed; "deleting" an account just flips this to 0.
     status = Column(Integer, nullable=False, default=STATUS_VISIBLE, index=True)
+    # True for every Google-authenticated account (google_sub is not
+    # None) - Google's own OAuth verification of the email address is
+    # itself proof of ownership, so re-verifying would be redundant.
+    # False by default for a fresh email/password signup until they
+    # complete the emailed-code flow (see models/email_verification_code.py
+    # and /api/auth/verify-email in app.py) - /api/auth/login refuses to
+    # log in an unverified account (see that route's own check).
+    email_verified = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     documents = relationship("Document", back_populates="owner", cascade="all, delete-orphan")
@@ -71,6 +89,7 @@ class User(Base):
             "role": self.role,
             "has_password": self.password_hash is not None,
             "google_linked": self.google_sub is not None,
+            "email_verified": self.email_verified,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
@@ -99,6 +118,9 @@ def create_user(email, google_sub=None, password_hash=None, name=None, picture_u
             picture_url=picture_url,
             role=role,
             status=STATUS_VISIBLE,
+            # Google's own OAuth flow already verified this email - see
+            # this column's own comment above.
+            email_verified=(google_sub is not None),
         )
         session.add(user)
         session.commit()

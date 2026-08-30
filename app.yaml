@@ -88,3 +88,13 @@ databases:
     engine: PG
     version: "16"
     production: true
+    # REQUIRED for backups - production: true alone does NOT provision a
+    # real Managed Database; without cluster_name, App Platform still
+    # creates a "dev database," which DigitalOcean explicitly does not
+    # support backing up at all (no automated backups, no point-in-time
+    # recovery - see docs/DEPLOYMENT.md's "Database backups" section for
+    # the full explanation and how to create this cluster). Replace the
+    # placeholder below with the name of a database cluster you create
+    # separately (`doctl databases create <name> --engine pg --version 16`
+    # or via the control panel) BEFORE deploying this spec.
+    cluster_name: <PLACEHOLDER - name of a pre-created Managed Database cluster, see docs/DEPLOYMENT.md>

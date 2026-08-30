@@ -74,8 +74,9 @@ const EXPLORE_CARDS = [
 
 const MISSION_MESSAGE =
   'ITTI is a global research and advisory institute that documents collective trauma, builds ' +
-  'country-level Trauma Observatories and standardized indices like GTBI and ETTI, and turns ' +
-  'those insights into trauma-informed governance and policy reform.';
+  'country-level Trauma Observatories and standardized indices like the Global Trauma Burden ' +
+  'Index (GTBI) and Election Trauma Temperature Index (ETTI), and turns those insights into ' +
+  'trauma-informed governance and policy reform.';
 
 export default function Home() {
   useHashScroll();

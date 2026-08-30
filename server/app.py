@@ -38,6 +38,8 @@ import json
 import io
 import os
 import re
+import secrets
+import hmac
 import tempfile
 from datetime import datetime, timedelta
 
@@ -65,7 +67,7 @@ from models.database import Base, DATABASE_URL, engine
 from models.user import (
     create_user, get_user, get_user_by_google_sub, get_user_by_email,
     update_user, delete_user, restore_user, STATUS_HIDDEN,
-    get_all_users, VALID_ROLES, ROLE_ADMIN, ROLE_PUBLISHER,
+    get_all_users, VALID_ROLES, ROLE_ADMIN, ROLE_PUBLISHER, ROLE_REVIEWER,
 )
 from models.document import (
     create_document, get_documents_by_user, get_document, delete_document,
@@ -73,11 +75,15 @@ from models.document import (
 )
 from models.report import (
     create_report, get_report, get_all_reports, get_published_reports, get_pending_reports,
-    get_changes_requested_reports, get_reports_by_uploader,
-    delete_report, hard_delete_report, resubmit_report, set_report_category,
-    reports_to_public_dicts, REPORT_CATEGORIES,
+    get_changes_requested_reports, get_deletion_requested_reports, get_deleted_reports,
+    get_reports_by_uploader,
+    delete_report, restore_report, hard_delete_report, resubmit_report, set_report_category,
+    request_report_deletion, reports_to_public_dicts, REPORT_CATEGORIES,
 )
-from models.report_review import record_review, get_reviews_for_report, reviews_to_public_dicts, ReviewError
+from models.report_review import (
+    record_review, get_reviews_for_report, reviews_to_public_dicts, ReviewError,
+    record_deletion_review, DeletionReviewError,
+)
 from models.notification import (
     get_notifications_for_user, get_unread_count, mark_notification_read, mark_all_read,
     mark_notifications_read, delete_notifications,
@@ -89,6 +95,9 @@ from models.user_event import create_user_event, get_events_by_user, CRUDAction
 from models.password_reset_token import create_reset_token, get_valid_token, mark_token_used
 from models.password_reset_code import (
     create_reset_code, verify_code, invalidate_active_codes, MAX_VERIFY_ATTEMPTS,
+)
+from models.email_verification_code import (
+    create_verification_code, verify_code as verify_email_code,
 )
 from models.saved_chart import (
     create_saved_chart, get_saved_chart, get_saved_charts_by_user, delete_saved_chart,
@@ -111,8 +120,8 @@ from models.fellow import (
 from storage import get_storage
 import image_processing
 from email_backend import (
-    get_email_backend, send_password_reset_code_email, send_donation_confirmation_email,
-    send_enrollment_confirmation_email,
+    get_email_backend, send_password_reset_code_email, send_email_verification_code_email,
+    send_donation_confirmation_email, send_enrollment_confirmation_email,
 )
 import validation
 
@@ -222,6 +231,96 @@ app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB
 # browser. CLIENT_ORIGIN still needs updating to the real frontend domain
 # once one exists - that part isn't code-solvable yet.
 CORS(app, supports_credentials=True, origins=[CLIENT_ORIGIN])
+
+# ---------------------------------------------------------------------------
+# CSRF protection (double-submit cookie pattern)
+# ---------------------------------------------------------------------------
+# Why this approach specifically: this is a pure JSON API authenticated by a
+# cookie (see the session config above), not server-rendered HTML forms, so
+# Flask-WTF's form-field-based CSRF token doesn't fit naturally - there's no
+# <form> for it to inject a hidden field into. The double-submit cookie
+# pattern works cleanly with fetch()+CORS instead: the browser holds a
+# csrf_token cookie (readable by JS, unlike the HttpOnly session cookie
+# above) and the frontend echoes it back in an X-CSRF-Token header on every
+# state-changing request. A cross-site attacker can trick a browser into
+# *sending* a request with the ambient session cookie attached (the actual
+# CSRF vulnerability), but can't read the csrf_token cookie themselves
+# (blocked by the same-origin policy) to also set that header correctly -
+# so a forged request is missing/wrong on the one thing that matters.
+#
+# This layers on top of, not instead of, SESSION_COOKIE_SAMESITE=Lax above -
+# Lax alone already blocks the cookie on cross-site POSTs in modern
+# browsers, but doesn't cover every historical/edge-case browser behavior,
+# and defense-in-depth here is cheap.
+CSRF_COOKIE_NAME = "csrf_token"
+CSRF_HEADER_NAME = "X-CSRF-Token"
+# Reused by every route this app already treats as "not a normal browser
+# request with our session cookie attached" - the two Stripe webhooks
+# (server-to-server, authenticated by Stripe's own signature instead) plus
+# any safe/read-only method, which by definition can't change state and so
+# isn't a CSRF target in the first place.
+CSRF_EXEMPT_PATHS = {"/api/donations/webhook", "/api/certifications/webhook"}
+
+
+@app.before_request
+def enforce_csrf():
+    if request.method in ("GET", "HEAD", "OPTIONS"):
+        return None
+    if request.path in CSRF_EXEMPT_PATHS:
+        return None
+
+    cookie_token = request.cookies.get(CSRF_COOKIE_NAME)
+    header_token = request.headers.get(CSRF_HEADER_NAME)
+
+    # compare_digest (constant-time) rather than == - not because the
+    # token itself is secret (the whole point of this pattern is that it's
+    # NOT secret, it's just something an attacker can't also read), but
+    # because there's no reason to leak timing information about a
+    # security comparison when a constant-time one costs nothing extra.
+    if (
+        not cookie_token
+        or not header_token
+        or not hmac.compare_digest(cookie_token, header_token)
+    ):
+        return jsonify({
+            "error": "csrf_failed",
+            "description": "Your session could not be verified. Please refresh the page and try again.",
+        }), 403
+    return None
+
+
+@app.after_request
+def ensure_csrf_cookie(response):
+    """
+    Issues a csrf_token cookie on any response that doesn't already have
+    one - readable by JS (NOT HttpOnly, unlike the session cookie), since
+    the frontend needs to read it back out to set the X-CSRF-Token header
+    on its next request. SameSite/Secure mirror the session cookie's own
+    settings (see app.config["SESSION_COOKIE_*"] above) for the same
+    cross-origin reasoning.
+
+    Checks the RESPONSE's own Set-Cookie headers, not request.cookies -
+    request.cookies only reflects what the browser already sent on the
+    way in, so checking that here would miss the case where a route
+    (get_csrf_token() below) already called response.set_cookie() with a
+    specific value earlier in the same response - checking request.cookies
+    instead would then overwrite that value with a second, different
+    random token, and the token this hook just set would silently not
+    match the one get_csrf_token() had already returned in its JSON body.
+    """
+    already_setting_cookie = any(
+        value.startswith(f"{CSRF_COOKIE_NAME}=") for value in response.headers.getlist("Set-Cookie")
+    )
+    if not request.cookies.get(CSRF_COOKIE_NAME) and not already_setting_cookie:
+        response.set_cookie(
+            CSRF_COOKIE_NAME,
+            secrets.token_urlsafe(32),
+            httponly=False,
+            samesite=app.config["SESSION_COOKIE_SAMESITE"],
+            secure=app.config["SESSION_COOKIE_SECURE"],
+            max_age=int(timedelta(days=7).total_seconds()),
+        )
+    return response
 
 # storage_uri="memory://" keeps each rate-limit counter in that worker
 # process's own memory - fine at this app's current scale (no shared
@@ -549,16 +648,62 @@ def health():
     return jsonify({"status": "ok"})
 
 
+@app.get("/api/csrf-token")
+def get_csrf_token():
+    """
+    A GET, so it's never itself subject to the CSRF check above (and
+    doesn't need to be, since it doesn't change any state). The frontend
+    calls this once on app load (see AuthContext.jsx) specifically so a
+    csrf_token cookie is guaranteed to exist before the very first
+    state-changing request (login, signup, etc.) - without this, that
+    first POST would arrive with no cookie yet to compare against and
+    get rejected by enforce_csrf(), a chicken-and-egg problem the plain
+    after_request hook alone can't solve for a request that never has a
+    prior GET.
+
+    Reuses the existing cookie if the browser already sent one (request.
+    cookies reflects what was already set - most calls to this route
+    after the first will already have it), otherwise generates a fresh
+    one directly here rather than relying on ensure_csrf_cookie() to
+    notice it's missing: that hook runs on the RESPONSE and has no way to
+    also report the value back in this response's JSON body, since by
+    the time it runs this view function has already returned. Returning
+    it in the body (not just the cookie) lets the frontend read it
+    immediately from this call's result rather than needing to parse
+    document.cookie in a separate step right after.
+    """
+    token = request.cookies.get(CSRF_COOKIE_NAME) or secrets.token_urlsafe(32)
+    response = jsonify({"csrf_token": token})
+    response.set_cookie(
+        CSRF_COOKIE_NAME,
+        token,
+        httponly=False,
+        samesite=app.config["SESSION_COOKIE_SAMESITE"],
+        secure=app.config["SESSION_COOKIE_SECURE"],
+        max_age=int(timedelta(days=7).total_seconds()),
+    )
+    return response
+
+
 # ---------------------------------------------------------------------------
 # Auth (Google Sign-In + email/password)
 # ---------------------------------------------------------------------------
 
 @app.post("/api/auth/google")
+@limiter.limit("20 per minute")
 def auth_google():
     """
     Body: { "credential": "<Google ID token JWT from the frontend button>" }
     Verifies the token with Google, creates the user if new (always at
     ROLE_BASIC), and starts a Flask session (cookie-based).
+
+    Rate limited same as the reasoning for every other auth route here -
+    even though a valid credential requires an actual Google account (this
+    isn't guessable the way a password is), the route still does real work
+    per request (a network call to Google to verify the JWT, a DB lookup/
+    write) with no cost to an attacker submitting garbage tokens just to
+    burn server time, and no rate limit at all was a gap relative to every
+    other route in this file that touches auth/session state.
     """
     body = request.get_json(silent=True) or {}
     credential = body.get("credential")
@@ -605,7 +750,13 @@ def auth_google():
             # why this specifically means "was this a password account they
             # hadn't used Google with before").
             linked_existing_account = user.google_sub is None and user.password_hash is not None
-            update_user(user.id, google_sub=google_sub, name=user.name or name, picture_url=user.picture_url or picture_url)
+            # email_verified=True unconditionally here too, even if they
+            # were already verified - Google just independently proved
+            # ownership of this exact email address, which is at least as
+            # strong a guarantee as the emailed-code flow this account
+            # may or may not have completed.
+            update_user(user.id, google_sub=google_sub, name=user.name or name,
+                        picture_url=user.picture_url or picture_url, email_verified=True)
         else:
             user = create_user(google_sub=google_sub, email=email, name=name, picture_url=picture_url)
 
@@ -647,6 +798,14 @@ def auth_signup():
     belongs to a previously soft-deleted account instead, reactivates it
     with the new name/password rather than erroring - their old
     documents/event history come back with it.
+
+    Does NOT log the user in - unlike before email verification existed,
+    a fresh signup starts unverified (email_verified=False - see that
+    column's own comment in models/user.py) and /api/auth/login refuses
+    to authenticate an unverified account. Instead, this sends a 6-digit
+    code and the response tells the frontend to route to the "enter your
+    code" screen (see /api/auth/verify-email below), the same pattern
+    already used for password reset.
     """
     body = request.get_json(silent=True) or {}
     email = (body.get("email") or "").strip().lower()
@@ -670,7 +829,12 @@ def auth_signup():
         # They previously deleted this account. Treat signing up again with
         # the same email as reactivating it (with the new password/name)
         # rather than a dead end - their old documents/event history are
-        # still attached to this same row and come back with it.
+        # still attached to this same row and come back with it. Their
+        # prior verification status is intentionally NOT reset to False -
+        # if they'd verified this email before, Google-linked it, or this
+        # is a re-signup after a failed verification attempt on a still-
+        # unverified row, either way falling through to the same
+        # send-a-code path below is correct and harmless either way.
         password_hash = generate_password_hash(password)
         update_user(existing.id, password_hash=password_hash, name=name or existing.name)
         restore_user(existing.id)
@@ -681,21 +845,138 @@ def auth_signup():
         user = create_user(email=email, password_hash=password_hash, name=name)
         logger.info("signup user_id=%s", user.id)
 
-    session.clear()
-    session["user_id"] = user.id
-    session.permanent = True
+    if user.email_verified:
+        # Already verified (e.g. reactivating a previously-verified
+        # account) - log them in immediately, same as before email
+        # verification existed, since there's nothing left to prove.
+        session.clear()
+        session["user_id"] = user.id
+        session.permanent = True
+        return jsonify(user.to_public_dict()), 201
 
-    return jsonify(user.to_public_dict()), 201
+    try:
+        raw_code = create_verification_code(user.id)
+        send_email_verification_code_email(email_backend, user.email, raw_code)
+        logger.info("signup verification code sent user_id=%s", user.id)
+    except Exception:
+        # Unlike forgot_password()'s deliberate silence (see that route's
+        # own comment on why a send failure there must be invisible to
+        # the caller) - here the account genuinely isn't usable without a
+        # code, so the person needs to know sending failed rather than
+        # being left staring at a "check your email" screen for an email
+        # that never arrived. Logged for operators either way.
+        logger.exception("signup verification code email failed to send user_id=%s", user.id)
+        abort(500, description="Your account was created, but we couldn't send the verification email. Please try resending it.")
+
+    return jsonify({"id": user.id, "email": user.email, "needs_verification": True}), 201
+
+
+@app.post("/api/auth/verify-email")
+@limiter.limit("10 per hour")
+def verify_email_route():
+    """
+    Body: { "email": "...", "code": "..." }
+    Marks the account verified and logs the user in - entering the
+    correct code proves email ownership, same reasoning as
+    /api/auth/forgot-password/verify logging the user in on a correct
+    reset code.
+    """
+    body = request.get_json(silent=True) or {}
+    email = (body.get("email") or "").strip().lower()
+    code = (body.get("code") or "").strip()
+
+    generic_invalid = jsonify({"error": "invalid_email_or_code", "description": "That code doesn't match."})
+
+    if not email or not EMAIL_RE.match(email) or not code:
+        return generic_invalid, 400
+
+    user = get_user_by_email(email)
+    if user is None:
+        return generic_invalid, 400
+
+    result = verify_email_code(user.id, code)
+
+    if result == "ok":
+        update_user(user.id, email_verified=True)
+        user = get_user(user.id)
+        session.clear()
+        session["user_id"] = user.id
+        session.permanent = True
+        logger.info("email verified user_id=%s", user.id)
+        return jsonify(user.to_public_dict())
+
+    if result == "too_many_attempts":
+        abort(429, description="Too many incorrect attempts. Please request a new code.")
+    if result == "expired":
+        abort(400, description="This code has expired. Please request a new one.")
+    abort(400, description="That code doesn't match. Please check it and try again.")
+
+
+@app.post("/api/auth/resend-verification")
+@limiter.limit("5 per hour")
+def resend_verification_route():
+    """
+    Body: { "email": "..." }
+    Same generic-response shape as /api/auth/forgot-password/resend, for
+    the same email-enumeration reason - but this one intentionally DOES
+    let the caller know if the account is already verified (nothing to
+    resend) or doesn't exist, unlike the password-reset flow. Signup
+    already told this exact person their own account's email a moment
+    ago (the 201 response includes it) - there's no new information
+    being leaked to a stranger that they couldn't already get by simply
+    trying to sign up with that email and seeing the 409.
+    """
+    body = request.get_json(silent=True) or {}
+    email = (body.get("email") or "").strip().lower()
+
+    if not email or not EMAIL_RE.match(email):
+        abort(400, description="A valid email is required")
+
+    user = get_user_by_email(email)
+    if user is None:
+        abort(404, description="No account found for that email")
+    if user.email_verified:
+        return jsonify({"message": "This account is already verified - you can log in."})
+
+    try:
+        raw_code = create_verification_code(user.id)
+    except RuntimeError as e:
+        return jsonify({"message": str(e)})
+
+    try:
+        send_email_verification_code_email(email_backend, user.email, raw_code)
+        logger.info("verification code resent user_id=%s", user.id)
+    except Exception:
+        logger.exception("resend verification code email failed to send user_id=%s", user.id)
+        abort(500, description="Could not send the verification email. Please try again in a moment.")
+
+    return jsonify({"message": "A new verification code has been sent."})
 
 
 @app.post("/api/auth/login")
-@limiter.limit("10 per minute")
+@limiter.limit("8 per minute")
+@limiter.limit("30 per hour")
 def auth_login():
     """
     Body: { "email": "...", "password": "..." }
     Logs in with an email/password account created via /api/auth/signup.
     If the account was previously soft-deleted, a correct password
     reactivates it rather than being rejected.
+
+    Refuses to log in an unverified account (email_verified=False - see
+    that column's own comment in models/user.py) even with the correct
+    password - returns 403 with needs_verification so the frontend can
+    route straight to the code-entry screen instead of a generic error.
+
+    Two limits, not one: "8 per minute" alone would still allow 480
+    attempts/hour if spread out evenly, which is a meaningful budget for
+    guessing a weak password against one known email - this app has no
+    account-level lockout (soft-deleted accounts already reactivate on a
+    correct password, so a per-account failed-attempt counter would need
+    to interact with that), so this IP-based limit is the only real
+    defense against credential-guessing on login. The per-minute limit
+    alone still absorbs a real user mistyping their password a few times
+    in a row without being blocked.
     """
     body = request.get_json(silent=True) or {}
     email = (body.get("email") or "").strip().lower()
@@ -707,6 +988,21 @@ def auth_login():
     user = get_user_by_email(email, include_hidden=True)
     if user is None or not user.password_hash or not check_password_hash(user.password_hash, password):
         abort(401, description="Invalid email or password")
+
+    if not user.email_verified:
+        # Correct password, but the email was never confirmed - a
+        # different failure mode than "wrong credentials", so it gets its
+        # own status code and payload rather than the generic 401 above,
+        # which would otherwise leave the frontend no way to distinguish
+        # "wrong password" from "right password, unverified account."
+        # Returned directly (not abort()) since the extra "email" field
+        # needs to reach the frontend - the shared HTTPException handler
+        # only forwards error/description, not arbitrary extra keys.
+        return jsonify({
+            "error": "email_not_verified",
+            "description": "Please verify your email before logging in.",
+            "email": user.email,
+        }), 403
 
     if user.status == STATUS_HIDDEN:
         # Correct password proves ownership, so treat this as an intentional
@@ -830,6 +1126,7 @@ def resend_reset_code():
 
 
 @app.post("/api/auth/forgot-password/back")
+@limiter.limit("20 per hour")
 def forgot_password_back():
     """
     Body: { "email": "..." }
@@ -839,7 +1136,9 @@ def forgot_password_back():
     user has indicated it's the wrong address. No-ops silently (same
     generic response) if the email isn't registered - nothing to
     invalidate, and this must not become an email-enumeration oracle
-    either.
+    either. Rate limited mainly so this can't be used to grief someone
+    else's in-progress reset by repeatedly invalidating their codes
+    faster than they can act on one.
     """
     body = request.get_json(silent=True) or {}
     email = (body.get("email") or "").strip().lower()
@@ -945,6 +1244,12 @@ def auth_me():
     """Returns the logged-in user, or 401 if no session."""
     user = get_current_user()
     if user is None:
+        # login_required above already returned 401 for an expired/missing
+        # session before this line could even run - reaching here with
+        # user is None specifically means the session's user_id no longer
+        # corresponds to a real account (e.g. the account was hard-deleted
+        # between requests), a different, rarer situation from a timed-out
+        # session.
         session.clear()
         abort(404, description="User not found")
     return jsonify(user.to_public_dict())
@@ -952,6 +1257,7 @@ def auth_me():
 
 @app.post("/api/auth/update-profile")
 @login_required
+@limiter.limit("20 per hour")
 def update_profile():
     """
     Body: { "name"?: str, "current_password"?: str, "new_password"?: str }
@@ -960,6 +1266,11 @@ def update_profile():
     field without the other is a 400. Google-only accounts (no
     password_hash yet) can set an initial password by sending just
     "new_password" with no "current_password".
+
+    Rate limited - this checks current_password against the stored hash
+    when changing password, which is otherwise brute-forceable by anyone
+    who has (or has stolen/fixated) a valid session, same as any other
+    password-verification endpoint in this file.
     """
     user = get_current_user()
     body = request.get_json(silent=True) or {}
@@ -1005,12 +1316,19 @@ def auth_logout():
 
 @app.delete("/api/auth/me")
 @login_required
+@limiter.limit("10 per hour")
 def delete_account():
     """
     Soft-deletes the logged-in user's account: sets status to 0
     (hidden) rather than removing the row. Their documents and event
     history stay intact. Logs the deletion as a DELETE event, then
     clears the session.
+
+    Rate limited as defense-in-depth even though this doesn't check a
+    password (there's nothing to brute-force) - a destructive action
+    with no confirmation step beyond "are you logged in" is worth
+    throttling against a buggy client retry-looping or a replayed
+    request, same reasoning as everywhere else in this file.
     """
     user = get_current_user()
     delete_user(user.id)
@@ -1697,18 +2015,22 @@ def remove_document_permanently(document_id):
 def _can_view_report(report, user):
     """
     True if `user` (may be None, i.e. a guest) is allowed to see this
-    report at all. Published+visible reports are public. Anything else
-    (pending_review, changes_requested, or soft-deleted) is only
-    visible to the report's own uploader or to a publisher/admin -
-    i.e. the same pool of people who can act on it.
+    report at all. Published+visible reports are public - so are
+    deletion_requested reports (see REVIEW_STATUS_DELETION_REQUESTED's
+    own comment in models/report.py: a report stays visible on the
+    public Reports page throughout its deletion review, so it's public
+    the same way a published report is). Anything else (pending_review,
+    changes_requested, rejected, or soft-deleted) is only visible to
+    the report's own uploader or to a publisher/reviewer/admin - i.e.
+    the same pool of people who can act on it.
     """
     if report.status != 1:
         return user is not None and (user.role == ROLE_ADMIN)
-    if report.review_status == "published":
+    if report.review_status in ("published", "deletion_requested"):
         return True
     if user is None:
         return False
-    return user.id == report.uploaded_by or user.role in (ROLE_PUBLISHER, ROLE_ADMIN)
+    return user.id == report.uploaded_by or user.role in (ROLE_PUBLISHER, ROLE_REVIEWER, ROLE_ADMIN)
 
 
 @app.get("/api/reports")
@@ -1727,8 +2049,26 @@ def list_reports():
     return paginated_json_response(reports_to_public_dicts(reports), total, limit, offset)
 
 
+@app.get("/api/reports/search")
+@limiter.limit("60 per minute")
+def search_reports_route():
+    """
+    ?q=<query> - public, no login required. Backs the sitewide search
+    bar (see SearchBar.jsx) - a small, fixed-size preview of matching
+    PUBLISHED reports (title or description), not a paginated browse.
+    Returns [] for a blank/missing query rather than 400ing, so a
+    frontend that fires this on every keystroke doesn't need special-
+    case handling for an empty search box.
+    """
+    query_text = (request.args.get("q") or "").strip()
+    if not query_text:
+        return jsonify([])
+    reports = search_published_reports(query_text, limit=5)
+    return jsonify(reports_to_public_dicts(reports))
+
+
 @app.get("/api/reports/pending")
-@roles_required("publisher", "admin")
+@roles_required("publisher", "reviewer", "admin")
 def list_pending_reports_route():
     """Reports awaiting review, oldest first. Peer Review page - publisher/admin only."""
     limit, offset = parse_pagination_args()
@@ -1737,7 +2077,7 @@ def list_pending_reports_route():
 
 
 @app.get("/api/reports/changes-requested")
-@roles_required("publisher", "admin")
+@roles_required("publisher", "reviewer", "admin")
 def list_changes_requested_reports_route():
     """
     Reports sent back to their uploader for changes, most recently
@@ -1931,8 +2271,94 @@ def _save_report_upload(user_id, file, image):
     return file_path, file_type, file_size_bytes, file.filename, image_path, image_mime_type
 
 
+def _save_report_edit_uploads(user_id, existing_file_size_bytes, file, image):
+    """
+    Like _save_report_upload above, but both `file` and `image` are
+    optional - used by the "edit while pending_review" flow (POST
+    /api/reports/<id>/edit), where a publisher may be changing only
+    the text fields, only the cover image, only the report file, or
+    any combination, unlike a first upload or a changes_requested
+    resubmission, both of which always bring a new file.
+
+    Returns a dict of resubmit_report() kwargs covering only whatever
+    was actually replaced - e.g. {} if neither file nor image was
+    given, or just {"image_path": ..., "image_mime_type": ...} if only
+    the image changed. resubmit_report() leaves any field not present
+    in this dict untouched, so the caller can pass it straight through
+    as **kwargs.
+
+    Combined-size validation (MAX_REPORT_COMBINED_BYTES) is checked
+    against whichever of file/image are actually being replaced,
+    using existing_file_size_bytes as the file side of that check when
+    the file itself isn't being replaced - so swapping in a large
+    cover image on a report that already has a large file is still
+    caught, without re-validating a file that isn't changing.
+    """
+    has_new_file = file is not None and file.filename != ""
+    has_new_image = image is not None and image.filename != ""
+
+    result = {}
+    new_file_size = existing_file_size_bytes or 0
+    new_image_size = 0
+    ext = None
+
+    if has_new_file:
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext not in ALLOWED_REPORT_FILE_EXTENSIONS:
+            abort(400, description="Reports must be a PDF or Word document (.pdf, .doc, .docx)")
+        file.stream.seek(0, os.SEEK_END)
+        new_file_size = file.stream.tell()
+        file.stream.seek(0)
+        if new_file_size > MAX_UPLOAD_BYTES:
+            abort(400, description=f"File exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)}MB limit")
+        if new_file_size == 0:
+            abort(400, description="File is empty")
+
+    if has_new_image:
+        image_ext = os.path.splitext(image.filename)[1].lower()
+        if image_ext not in ALLOWED_REPORT_IMAGE_EXTENSIONS:
+            abort(400, description="Cover image must be a PNG, JPG, or WEBP file")
+        image.stream.seek(0, os.SEEK_END)
+        new_image_size = image.stream.tell()
+        image.stream.seek(0)
+        if new_image_size > MAX_REPORT_IMAGE_BYTES:
+            abort(400, description=f"Cover image exceeds the {MAX_REPORT_IMAGE_BYTES // (1024 * 1024)}MB limit")
+
+    if new_file_size + new_image_size > MAX_REPORT_COMBINED_BYTES:
+        combined_mb = MAX_REPORT_COMBINED_BYTES / (1024 * 1024)
+        abort(
+            400,
+            description=(
+                f"Report file and cover image together must be under {combined_mb:.1f}MB "
+                f"(currently {(new_file_size + new_image_size) / (1024 * 1024):.1f}MB combined)."
+            ),
+        )
+
+    if has_new_file:
+        file_path, file_size_bytes = report_storage.save(user_id, file.filename, file)
+        result["file_path"] = file_path
+        result["file_type"] = ext.lstrip(".")
+        result["file_size_bytes"] = file_size_bytes
+        result["original_filename"] = file.filename
+
+    if has_new_image:
+        try:
+            Image.open(image.stream).verify()
+        except Exception:
+            if has_new_file:
+                report_storage.delete(result["file_path"])
+            abort(400, description="Cover image could not be read as a valid image file")
+        image.stream.seek(0)
+
+        image_path, _ = report_storage.save(user_id, image.filename, image)
+        result["image_path"] = image_path
+        result["image_mime_type"] = image.mimetype
+
+    return result
+
+
 @app.post("/api/reports")
-@roles_required("publisher", "admin")
+@roles_required("publisher", "reviewer", "admin")
 @limiter.limit("20 per hour")
 def upload_report():
     """
@@ -2060,8 +2486,81 @@ def resubmit_report_route(report_id):
     return jsonify(updated.to_public_dict())
 
 
+@app.post("/api/reports/<int:report_id>/edit")
+@login_required
+@limiter.limit("20 per hour")
+def edit_report_route(report_id):
+    """
+    Multipart form fields:
+      - "title", "description", "category": string, required - this
+        route is meant to feel like resubmitting the same form used to
+        publish the report in the first place, prefilled, not a
+        partial patch, so all three are always sent.
+      - "file": optional new .pdf/.doc/.docx - omit to keep the
+        current file.
+      - "image": optional new cover image - omit to keep the current
+        one (or the lack of one).
+
+    Only usable by the report's own uploader, and only while it's
+    still pending_review - i.e. sitting in the peer review queue with
+    no decision made yet. A report already in changes_requested has
+    its own dedicated flow at POST /api/reports/<id>/resubmit (which
+    also carries a note back to the reviewer who requested changes);
+    a published, rejected, or deletion_requested report is past the
+    point where "editing" like this makes sense.
+
+    Like resubmit_report_route, this bumps version and resets
+    review_status to pending_review - since approvals/rejections in
+    report_review.py are scoped to `version`, that clears the current
+    approve/reject vote count for the new version without touching the
+    old version's review history. Category is applied via
+    set_report_category() as a separate call, since resubmit_report()
+    deliberately doesn't touch category (see its own docstring) - it's
+    not a peer-reviewable content field anywhere else in this app, and
+    keeping it out of resubmit_report() means this route is the only
+    place category changes are tied to a version bump/review reset.
+    """
+    user = get_current_user()
+    report = get_report(report_id)
+    if report is None or report.uploaded_by != user.id:
+        abort(404, description="Report not found")
+    if report.review_status != REVIEW_STATUS_PENDING:
+        abort(400, description="This report can only be edited while it's awaiting review.")
+
+    title = (request.form.get("title") or "").strip()
+    description = (request.form.get("description") or "").strip()
+    category = (request.form.get("category") or "").strip()
+
+    error = validation.validate_all([
+        ("report_title", title),
+        ("report_description", description),
+        ("report_category", category),
+    ])
+    if error:
+        abort(400, description=error)
+
+    upload_fields = _save_report_edit_uploads(
+        user.id, report.file_size_bytes, request.files.get("file"), request.files.get("image")
+    )
+
+    # resubmit_report() unconditionally overwrites resubmission_note
+    # (unlike title/description, which it only touches if not None) -
+    # pass the report's current value through rather than clearing it,
+    # since a plain edit here shouldn't erase a genuine note left over
+    # from an earlier changes_requested -> pending_review resubmission.
+    resubmit_report(
+        report_id, title=title, description=description,
+        resubmission_note=report.resubmission_note, **upload_fields
+    )
+    updated = set_report_category(report_id, category)
+
+    logger.info("report edited id=%s by user_id=%s new_version=%s", report_id, user.id, updated.version)
+
+    return jsonify(updated.to_public_dict())
+
+
 @app.post("/api/reports/<int:report_id>/review")
-@roles_required("publisher", "admin")
+@roles_required("publisher", "reviewer", "admin")
 @limiter.limit("60 per hour")
 def review_report_route(report_id):
     """
@@ -2181,7 +2680,7 @@ def delete_selected_notifications_route():
 
 
 @app.get("/api/reports/<int:report_id>/reviews")
-@roles_required("publisher", "admin")
+@roles_required("publisher", "reviewer", "admin")
 def list_report_reviews_route(report_id):
     """All review decisions for a report (every version, newest first). Publisher/admin only."""
     report = get_report(report_id)
@@ -2192,12 +2691,24 @@ def list_report_reviews_route(report_id):
 
 
 @app.delete("/api/reports/<int:report_id>")
-@roles_required("publisher", "admin")
+@roles_required("publisher", "reviewer", "admin")
 def remove_report(report_id):
     """
     Soft-deletes a report: flips status to 0 (hidden) rather than
-    removing the files or DB row. Publishers may only remove their own
-    reports; admins may remove any.
+    removing the files or DB row. Admins may remove any report,
+    instantly, same as always (deleted_via="admin" is recorded for the
+    Deleted Reports page).
+
+    Publishers/reviewers may only remove their own reports, and ONLY
+    while still pending_review/changes_requested/rejected - i.e. a
+    report that's never been public, so there's nothing for anyone
+    else to weigh in on. A PUBLISHED report is a 409 here: use
+    POST /api/reports/<id>/request-deletion instead, which starts the
+    reviewer-approval watching period (see that route and
+    request_report_deletion() in report.py) rather than deleting
+    outright. This is the one behavior change from the old version of
+    this route, which let a publisher instantly delete anything of
+    their own, published or not.
     """
     user = get_current_user()
     report = get_report(report_id)
@@ -2206,9 +2717,133 @@ def remove_report(report_id):
     if report.uploaded_by != user.id and user.role != ROLE_ADMIN:
         abort(404, description="Report not found")  # same as "not found" - don't reveal it exists but isn't theirs
 
-    delete_report(report_id)
+    if user.role != ROLE_ADMIN and report.review_status == "published":
+        abort(409, description=(
+            "This report is already published - request its deletion instead, which needs a reviewer's approval."
+        ))
+
+    delete_report(report_id, via=("admin" if user.role == ROLE_ADMIN else None))
     create_user_event(user_id=user.id, document_id=None, action=CRUDAction.DELETE)
     return jsonify({"status": "deleted", "id": report_id})
+
+
+@app.post("/api/reports/<int:report_id>/request-deletion")
+@roles_required("publisher", "admin")
+@limiter.limit("30 per hour")
+def request_report_deletion_route(report_id):
+    """
+    Body: { "reason": "..." }
+    A publisher asking to delete their own PUBLISHED report. Unlike the
+    instant DELETE above, this starts a watching period: the report
+    stays visible on the public Reports page (see
+    REVIEW_STATUS_DELETION_REQUESTED's own comment in report.py) until
+    a reviewer/admin decides via POST .../deletion-review below. An
+    admin CAN call this too (e.g. to formally document a reason before
+    still deciding it themselves as the reviewer), but has no real need
+    to - the plain instant DELETE above already skips this entirely for
+    admins.
+    """
+    user = get_current_user()
+    report = get_report(report_id)
+    if report is None or report.status == 0:
+        abort(404, description="Report not found")
+    if report.uploaded_by != user.id and user.role != ROLE_ADMIN:
+        abort(404, description="Report not found")
+
+    body = request.get_json(silent=True) or {}
+    reason = (body.get("reason") or "").strip()
+
+    error = validation.run_check("deletion_reason", reason)
+    if error:
+        abort(400, description=error)
+
+    try:
+        updated = request_report_deletion(report_id, reason)
+    except ValueError as e:
+        abort(400, description=str(e))
+
+    logger.info("report deletion requested id=%s by user_id=%s", report_id, user.id)
+    return jsonify(updated.to_public_dict())
+
+
+@app.post("/api/reports/<int:report_id>/deletion-review")
+@roles_required("reviewer", "admin")
+@limiter.limit("60 per hour")
+def review_deletion_request_route(report_id):
+    """
+    Body: { "decision": "approve" | "deny" }
+    Reviewer/admin-only. A single decision is final immediately (no
+    vote counting, unlike the publish workflow's review_report_route) -
+    see record_deletion_review() in report_review.py for the full
+    reasoning. "approve" soft-deletes the report (deleted_via=
+    "deletion_review"); "deny" puts it back to review_status=published
+    (it was visible the whole time either way).
+    """
+    user = get_current_user()
+    body = request.get_json(silent=True) or {}
+    decision = (body.get("decision") or "").strip().lower()
+
+    try:
+        updated_report = record_deletion_review(report_id, user.id, decision)
+    except DeletionReviewError as e:
+        abort(400, description=str(e))
+
+    create_user_event(user_id=user.id, document_id=None, action=CRUDAction.UPDATE)
+    logger.info("report deletion review id=%s reviewer_id=%s decision=%s -> review_status=%s",
+                report_id, user.id, decision, updated_report.review_status)
+
+    return jsonify(updated_report.to_public_dict())
+
+
+@app.get("/api/reports/deletion-requests")
+@roles_required("reviewer", "admin")
+def list_deletion_requested_reports_route():
+    """
+    Reports currently awaiting a reviewer's deletion decision, oldest
+    request first. Backs the Peer Review page's Deletion Requests tab.
+    """
+    limit, offset = parse_pagination_args()
+    reports, total = get_deletion_requested_reports(limit=limit, offset=offset)
+    return paginated_json_response(reports_to_public_dicts(reports), total, limit, offset)
+
+
+@app.get("/api/reports/deleted")
+@roles_required("admin")
+def list_deleted_reports_route():
+    """
+    Admin-only. Every soft-deleted report that was published at some
+    point (deleted_via is set - see get_deleted_reports()'s own
+    docstring for exactly what that includes/excludes), searchable and
+    filterable by category same as GET /api/reports/all. Backs the
+    admin-only Deleted Reports page.
+    """
+    search = (request.args.get("search") or "").strip() or None
+    category = (request.args.get("category") or "").strip() or None
+    limit, offset = parse_pagination_args()
+    reports, total = get_deleted_reports(search=search, category=category, limit=limit, offset=offset)
+    return paginated_json_response(reports_to_public_dicts(reports), total, limit, offset)
+
+
+@app.post("/api/reports/<int:report_id>/repost")
+@roles_required("admin")
+def repost_report_route(report_id):
+    """
+    Admin-only. Un-deletes a report from the Deleted Reports page: just
+    restore_report() (status back to visible) - deliberately does NOT
+    touch review_status, category, file, or any other field, so
+    "repost" really does mean "bring back exactly what was there
+    before", not a fresh resubmission through peer review again. Only
+    valid for a report currently on the Deleted Reports page (status
+    hidden AND deleted_via set) - reposting a report that was never
+    actually published doesn't mean anything.
+    """
+    report = get_report(report_id)
+    if report is None or report.status != 0 or report.deleted_via is None:
+        abort(404, description="Report not found in Deleted Reports")
+
+    restore_report(report_id)
+    logger.info("report reposted id=%s by admin_id=%s", report_id, get_current_user().id)
+    return jsonify({"status": "reposted", "id": report_id})
 
 
 @app.delete("/api/reports/<int:report_id>/permanent")

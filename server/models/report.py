@@ -24,7 +24,7 @@ state, and hiding it never affects its review progress.
 
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, BigInteger
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, BigInteger, or_
 from sqlalchemy.orm import relationship
 
 from .database import Base, Session
@@ -45,6 +45,20 @@ REVIEW_STATUS_PUBLISHED = "published"
 # uploader can still see them (with reviewer comments) and delete them
 # from their own Publications/personal peer-review list.
 REVIEW_STATUS_REJECTED = "rejected"
+# A publisher has asked to delete their own PUBLISHED report and given
+# a reason (see request_report_deletion() below) - the report stays
+# visible on the public Reports page (deliberately, per product
+# decision - deleting a live report isn't something one person should
+# be able to do unilaterally, even to their own work, without another
+# set of eyes) until a reviewer/admin decides. Unlike the
+# publish workflow's 3-approval/2-rejection vote counting, exactly ONE
+# reviewer/admin decision is final either way - see
+# record_deletion_review() in report_review.py. Only reachable FROM
+# "published" (see request_report_deletion()'s own guard) - a report
+# still mid-review (pending_review/changes_requested) has never gone
+# public yet, so its uploader can keep using the ordinary instant
+# soft-delete for it instead of going through this queue.
+REVIEW_STATUS_DELETION_REQUESTED = "deletion_requested"
 
 REQUIRED_APPROVALS = 3
 # Distinct reject decisions at the current version that pull a report
@@ -111,6 +125,30 @@ class Report(Base):
     # touch it.
     category = Column(String, nullable=False, default=DEFAULT_REPORT_CATEGORY, index=True)
 
+    # Set only while review_status == REVIEW_STATUS_DELETION_REQUESTED -
+    # the publisher's required explanation for why they want their own
+    # published report taken down (see request_report_deletion()).
+    # Stays populated after the request resolves (approved or denied)
+    # as a record of what was asked and why - only cleared if the
+    # report is later un-deleted (see restore_report()), since at that
+    # point the old reason no longer describes the report's current
+    # state.
+    pending_deletion_reason = Column(Text, nullable=True)
+    pending_deletion_requested_at = Column(DateTime, nullable=True)
+
+    # Set only when status flips to STATUS_HIDDEN (soft-deleted) on an
+    # already-PUBLISHED report - null for a report that's never been
+    # published, or one still visible. Tracks HOW it got soft-deleted,
+    # for the admin Deleted Reports page (see get_deleted_reports()):
+    #   "deletion_review" - a publisher requested it, a reviewer/admin approved it
+    #   "admin"            - an admin used the ordinary instant soft-delete on it
+    # Deliberately NOT cleared by restore_report() (unlike
+    # pending_deletion_reason above) - even after a report is reposted,
+    # knowing how its last deletion happened is still useful history,
+    # and a future re-deletion will just overwrite it with whichever
+    # path is used that time.
+    deleted_via = Column(String, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -153,6 +191,12 @@ class Report(Base):
             "review_status": self.review_status,
             "version": self.version,
             "category": self.category,
+            "pending_deletion_reason": self.pending_deletion_reason,
+            "pending_deletion_requested_at": (
+                self.pending_deletion_requested_at.isoformat() if self.pending_deletion_requested_at else None
+            ),
+            "deleted_via": self.deleted_via,
+            "status": self.status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -317,6 +361,45 @@ def get_published_reports(include_hidden=False, limit=DEFAULT_PAGE_SIZE, offset=
         session.close()
 
 
+def search_published_reports(query_text, limit=5):
+    """
+    A lightweight, public search over PUBLISHED+visible reports only -
+    matches query_text against title OR description, case-insensitive.
+    Backs the sitewide search bar (see SearchBar.jsx) - deliberately a
+    separate function from get_published_reports() above rather than
+    adding a search= param to it, since that function's contract (used
+    by the main Reports page, no search concept there at all) shouldn't
+    change shape for a caller that only exists elsewhere.
+
+    Unlike get_all_reports()'s admin search (title-only, any
+    review_status), this is intentionally public-safe: only ever
+    returns reports every visitor can already see, and searches
+    description text too since a sitewide search is more likely to be
+    a topic/keyword lookup than someone hunting for an exact title they
+    already know. Capped at a small fixed limit (no pagination) - this
+    is preview-of-results, not a full report browser; the "see all
+    results" link routes to /reports/browse with the same query instead.
+    """
+    if not query_text or not query_text.strip():
+        return []
+    session = Session()
+    try:
+        pattern = f"%{query_text.strip()}%"
+        return (
+            session.query(Report)
+            .filter(
+                Report.review_status == REVIEW_STATUS_PUBLISHED,
+                Report.status == STATUS_VISIBLE,
+                or_(Report.title.ilike(pattern), Report.description.ilike(pattern)),
+            )
+            .order_by(Report.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+    finally:
+        session.close()
+
+
 def get_pending_reports(include_hidden=False, limit=DEFAULT_PAGE_SIZE, offset=0):
     """
     Fetch a page of reports with review_status=pending_review, oldest
@@ -357,6 +440,31 @@ def get_changes_requested_reports(include_hidden=False, limit=DEFAULT_PAGE_SIZE,
             query = query.filter(Report.status == STATUS_VISIBLE)
         total = query.count()
         reports = query.order_by(Report.updated_at.desc()).offset(offset).limit(limit).all()
+        return reports, total
+    finally:
+        session.close()
+
+
+def get_deletion_requested_reports(limit=DEFAULT_PAGE_SIZE, offset=0):
+    """
+    Fetch a page of reports with review_status=deletion_requested,
+    oldest request first (same "longest waiting first" ordering as
+    get_pending_reports() above) - backs the Peer Review page's
+    Deletion Requests tab (reviewer/admin only). Deliberately does NOT
+    take an include_hidden param, unlike every other get_*_reports
+    function here: a deletion-requested report is by definition still
+    STATUS_VISIBLE (see request_report_deletion()'s own guard - the
+    report stays live on the public Reports page throughout the review
+    period, per product decision), so there's nothing hidden to
+    optionally include. Returns (reports, total).
+    """
+    limit = clamp_limit(limit)
+    offset = clamp_offset(offset)
+    session = Session()
+    try:
+        query = session.query(Report).filter(Report.review_status == REVIEW_STATUS_DELETION_REQUESTED)
+        total = query.count()
+        reports = query.order_by(Report.pending_deletion_requested_at.asc()).offset(offset).limit(limit).all()
         return reports, total
     finally:
         session.close()
@@ -439,11 +547,96 @@ def set_report_category(report_id, category):
         session.close()
 
 
-def delete_report(report_id):
+def request_report_deletion(report_id, reason):
+    """
+    A publisher asking to delete their own PUBLISHED report - records
+    the required reason and moves review_status to
+    REVIEW_STATUS_DELETION_REQUESTED (see that constant's own comment
+    for why the report stays visible throughout, and why this is only
+    reachable from "published"). Does NOT check who's calling or
+    whether they own the report - the route
+    (request_report_deletion_route in app.py) is responsible for both,
+    same division of labor as every other model function here.
+
+    Raises ValueError (safe, user-facing message) if the report isn't
+    currently published, or if reason is blank - the route turns this
+    into a 400. Returns the updated Report.
+    """
+    if not reason or not reason.strip():
+        raise ValueError("A reason is required to request deletion.")
+
+    session = Session()
+    try:
+        report = session.query(Report).filter(Report.id == report_id).first()
+        if report is None:
+            raise ValueError("Report not found.")
+        if report.review_status != REVIEW_STATUS_PUBLISHED:
+            raise ValueError("Only a published report can be submitted for deletion review.")
+
+        report.review_status = REVIEW_STATUS_DELETION_REQUESTED
+        report.pending_deletion_reason = reason.strip()
+        report.pending_deletion_requested_at = datetime.utcnow()
+        session.commit()
+        session.refresh(report)
+        return report
+    finally:
+        session.close()
+
+
+def cancel_deletion_request(report_id):
+    """
+    A reviewer/admin denying a deletion request - puts the report back
+    to "published" (it never actually left public view - see
+    REVIEW_STATUS_DELETION_REQUESTED's own comment) without touching
+    pending_deletion_reason/pending_deletion_requested_at, which stay
+    as a record of what was asked and denied. Returns the updated
+    Report, or None if not found or not currently in
+    deletion_requested (the route is responsible for checking that
+    before calling, same pattern as request_report_deletion() above -
+    this raises ValueError rather than silently no-op'ing so a stale
+    double-click can't look like it worked).
+    """
+    session = Session()
+    try:
+        report = session.query(Report).filter(Report.id == report_id).first()
+        if report is None:
+            raise ValueError("Report not found.")
+        if report.review_status != REVIEW_STATUS_DELETION_REQUESTED:
+            raise ValueError("This report isn't currently awaiting a deletion decision.")
+
+        report.review_status = REVIEW_STATUS_PUBLISHED
+        session.commit()
+        session.refresh(report)
+        return report
+    finally:
+        session.close()
+
+
+def delete_report(report_id, via=None):
     """
     Soft-delete a report: sets status to 0 (hidden) rather than removing
-    the row. The files on disk/storage both stay intact. Returns True if
-    found and hidden, False if not found.
+    the row. The files on disk/storage both stay intact.
+
+    via, if given, is recorded on Report.deleted_via ("deletion_review"
+    or "admin" - see that column's own comment) for the admin Deleted
+    Reports page. Left as None for a soft-delete on a report that was
+    never published (pending_review/changes_requested/rejected) - only
+    a published report's deletion is meaningful history to track there,
+    since get_deleted_reports() below only surfaces reports that were
+    live at some point.
+
+    via="deletion_review" additionally resets review_status back to
+    REVIEW_STATUS_PUBLISHED - the report was sitting at
+    REVIEW_STATUS_DELETION_REQUESTED (see that constant's own comment)
+    right up until this call, and "published but hidden" is the same
+    state an admin's ordinary instant soft-delete leaves a report in
+    (delete_report() called with via="admin" from a report that was
+    already published never touched review_status either). This is
+    what makes get_deleted_reports()'s "repost" action (just
+    restore_report(), flipping status back to visible) correct either
+    way, without needing to know which path a given deleted report took.
+
+    Returns True if found and hidden, False if not found.
     """
     session = Session()
     try:
@@ -451,6 +644,10 @@ def delete_report(report_id):
         if report is None:
             return False
         report.status = STATUS_HIDDEN
+        if via is not None:
+            report.deleted_via = via
+        if via == "deletion_review":
+            report.review_status = REVIEW_STATUS_PUBLISHED
         session.commit()
         return True
     finally:
@@ -467,6 +664,43 @@ def restore_report(report_id):
         report.status = STATUS_VISIBLE
         session.commit()
         return True
+    finally:
+        session.close()
+
+
+def get_deleted_reports(search=None, category=None, limit=DEFAULT_PAGE_SIZE, offset=0):
+    """
+    Fetch a page of soft-deleted (status=hidden) reports that were
+    PUBLISHED at some point - i.e. Report.deleted_via is set (either
+    "deletion_review" or "admin", see that column's own comment) -
+    newest-deleted first. Backs the admin-only Deleted Reports page.
+
+    Deliberately excludes a soft-deleted report whose deleted_via is
+    still null - that means it was hidden while still
+    pending_review/changes_requested/rejected (never public), which
+    isn't "a deleted report" in the sense this page means; it's closer
+    to a withdrawn draft. Only reports that were actually live and then
+    taken down belong here, per product decision.
+
+    search/category filters and pagination shape match
+    get_all_reports() (the admin recategorize tool) - same reasoning,
+    this is the same kind of admin utility list. Returns (reports, total).
+    """
+    limit = clamp_limit(limit)
+    offset = clamp_offset(offset)
+    session = Session()
+    try:
+        query = session.query(Report).filter(
+            Report.status == STATUS_HIDDEN,
+            Report.deleted_via.isnot(None),
+        )
+        if search:
+            query = query.filter(Report.title.ilike(f"%{search}%"))
+        if category:
+            query = query.filter(Report.category == category)
+        total = query.count()
+        reports = query.order_by(Report.updated_at.desc()).offset(offset).limit(limit).all()
+        return reports, total
     finally:
         session.close()
 

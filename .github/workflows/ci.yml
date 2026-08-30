@@ -20,7 +20,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements-dev.txt
 
       - name: Import sanity check
         run: |
@@ -38,51 +38,13 @@ jobs:
           print('migrations produce expected schema:', tables)
           "
 
-      - name: Auth + access-tier smoke test
+      - name: Test suite (pytest)
         run: |
           rm -f app.db
-          python - <<'PYEOF'
-          from unittest.mock import patch
-          import io, logging, re
-          import app as flask_app
-
-          flask_app.GOOGLE_CLIENT_ID = "test-client-id"
-          c = flask_app.app.test_client()
-
-          fake = {"sub": "sub-1", "email": "ci@example.com", "name": "CI Bot", "picture": None}
-          with patch("app.id_token.verify_oauth2_token", return_value=fake):
-              r = c.post("/api/auth/google", json={"credential": "t"})
-          assert r.status_code == 200 and r.json["role"] == "basic", r.json
-
-          r = c.post("/api/documents", data={"file": (io.BytesIO(b"hi"), "brief.pdf")}, content_type="multipart/form-data")
-          assert r.status_code == 403, r.json
-
-          assert c.get("/api/health").status_code == 200
-          assert c.get("/api/countries").status_code == 200
-
-          # forgot-password / reset-password
-          c.post("/api/auth/signup", json={"email": "reset@example.com", "password": "originalpass1"})
-          c.post("/api/auth/logout")
-
-          buf = io.StringIO()
-          flask_app.logger.addHandler(logging.StreamHandler(buf))
-          flask_app.logger.setLevel(logging.INFO)
-          r = c.post("/api/auth/forgot-password", json={"email": "reset@example.com"})
-          assert r.status_code == 200
-          match = re.search(r"token=(\S+)", buf.getvalue())
-          assert match, "reset link not found in console-logged email"
-          token = match.group(1)
-
-          r = c.post("/api/auth/reset-password", json={"token": token, "password": "newpassword1"})
-          assert r.status_code == 200, r.json
-          r = c.post("/api/auth/reset-password", json={"token": token, "password": "again12345"})
-          assert r.status_code == 400, "token should be single-use"
-
-          print("backend smoke test passed")
-          PYEOF
+          python -m pytest -v
 
   frontend:
-    name: Frontend (Vite build)
+    name: Frontend (tests + Vite build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -98,6 +60,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Test suite (Vitest)
+        run: npm run test
 
       - name: Install Playwright's Chromium
         run: npx playwright install --with-deps chromium

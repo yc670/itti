@@ -42,6 +42,7 @@ MAX_TITLE_LENGTH = 200
 MAX_DESCRIPTION_LENGTH = 200
 MAX_RESUBMISSION_NOTE_LENGTH = 2000
 MAX_REVIEW_COMMENT_LENGTH = 2000
+MAX_DELETION_REASON_LENGTH = 2000
 MIN_PASSWORD_LENGTH = 8
 MAX_PASSWORD_LENGTH = 128
 MAX_DONOR_NAME_LENGTH = 120
@@ -142,6 +143,22 @@ def check_review_comment(value):
     return None
 
 
+def check_deletion_reason(value):
+    """
+    Unlike check_review_comment above, presence IS required here - a
+    publisher requesting deletion of their own published report always
+    needs to explain why (see request_report_deletion() in report.py,
+    which also enforces this independently; the route validates first
+    so a blank reason gets a clean 400 rather than reaching the model
+    layer's ValueError).
+    """
+    if value is None or not value.strip():
+        return "A reason is required to request deletion."
+    if len(value) > MAX_DELETION_REASON_LENGTH:
+        return f"Reason must be under {MAX_DELETION_REASON_LENGTH} characters."
+    return None
+
+
 CHECKS = {
     "email": check_email,
     "password": check_password,
@@ -150,6 +167,7 @@ CHECKS = {
     "report_category": check_report_category,
     "resubmission_note": check_resubmission_note,
     "review_comment": check_review_comment,
+    "deletion_reason": check_deletion_reason,
     "donor_name": check_donor_name,
     "donation_amount": check_donation_amount,
 }

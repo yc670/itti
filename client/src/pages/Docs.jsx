@@ -130,7 +130,18 @@ export default function Docs() {
               {USER_GUIDE_STEPS.map((step) => (
                 <div key={step.title} className="docs-card">
                   <h3>{step.title}</h3>
-                  <p>{step.body}</p>
+                  <p>
+                    {step.body.map((seg, i) =>
+                      seg.bold ? <strong key={i}>{seg.bold}</strong> : <span key={i}>{seg.text}</span>
+                    )}
+                  </p>
+                  {step.bullets && (
+                    <ul className="docs-card-bullets">
+                      {step.bullets.map((b) => (
+                        <li key={b}>{b}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               ))}
             </div>

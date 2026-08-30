@@ -30,6 +30,10 @@ from pagination import DEFAULT_PAGE_SIZE, clamp_limit, clamp_offset
 TYPE_REPORT_PUBLISHED = "report_published"
 TYPE_REPORT_CHANGES_REQUESTED = "report_changes_requested"
 TYPE_REPORT_REJECTED = "report_rejected"
+# Sent to the uploader when a reviewer/admin decides their deletion
+# request - see record_deletion_review() in report_review.py.
+TYPE_REPORT_DELETION_APPROVED = "report_deletion_approved"
+TYPE_REPORT_DELETION_DENIED = "report_deletion_denied"
 
 
 class Notification(Base):

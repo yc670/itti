@@ -128,6 +128,19 @@
   color:var(--text-hi);
   margin:26px 0 12px 0;
 }
+/* Flags a section as placeholder legal text pending attorney review -
+   same amber warning language as .deletion-requested-banner in
+   App.css, reused here so "needs review" always looks the same
+   wherever it appears on the site. */
+.about-draft-notice{
+  color:#B8860B;
+  background:rgba(184,134,11,0.08);
+  border:1px solid rgba(184,134,11,0.3);
+  border-radius:8px;
+  padding:10px 14px;
+  font-size:13px;
+  margin:0 0 14px 0;
+}
 .about-section p{
   font-size:14.5px;
   line-height:1.7;

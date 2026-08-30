@@ -3,11 +3,12 @@
     "name": "Afghanistan",
     "overview": {
       "paragraphs": [
-        "Afghanistan's collective trauma is anchored in over four decades of near-continuous conflict, beginning with the Soviet invasion of 1979, which triggered a decade-long war that displaced millions and normalized violence as a mode of governance (Saleem et al., 2021). The subsequent civil war, Taliban rule, and U.S.-led intervention compounded this trauma load, embedding cycles of displacement, gender-based oppression, and community fragmentation into the national psyche.",
+        "Afghanistan's collective trauma is anchored in over four decades of near-continuous conflict, beginning with the Soviet invasion of 1979, which triggered a decade-long war that displaced millions and normalized violence as a mode of governance (Sheikh et al., 2021). The subsequent civil war, Taliban rule, and U.S.-led intervention compounded this trauma load, embedding cycles of displacement, gender-based oppression, and community fragmentation into the national psyche.",
         "This historical trauma has metastasized into what researchers describe as a \"trauma state,\" where war-induced psychological injury perpetuates further instability and conflict recurrence (Goepner, 2022). Modern-day Afghanistan continues to grapple with mass psychological morbidity, particularly among women and girls facing renewed restrictions under Taliban rule, alongside humanitarian collapse and a mental health infrastructure incapable of addressing generational psychiatric wounding."
       ],
       "references": [
-        "Goepner, E. (2022). War state, trauma state: Why Afghanistan remains stuck in conflict. Cato Institute Policy Analysis. https://www.cato.org/policy-analysis/war-state-trauma-state-why-afghanistan-remains-stuck-conflict"
+        "Goepner, E. (2022). War state, trauma state: Why Afghanistan remains stuck in conflict. Cato Institute Policy Analysis. https://www.cato.org/policy-analysis/war-state-trauma-state-why-afghanistan-remains-stuck-conflict",
+        "Sheikh, M. S., Sheikh, S., Riaz, D. A., & Chandradasa, M. (2021). Afghanistan: Decades of collective trauma, ongoing humanitarian crises, Taliban rulers, and mental health of the displaced population. Asian Journal of Psychiatry, 65, 102854. https://doi.org/10.1016/j.ajp.2021.102854"
       ]
     },
     "dashboard_note": null
@@ -16,8 +17,7 @@
     "name": "Åland Islands",
     "overview": {
       "paragraphs": [
-        "The Åland Islands have no significant documented history of internal war, genocide, or mass atrocity, having achieved a peacefully negotiated autonomous status under Finnish sovereignty following a League of Nations-mediated resolution of Swedish-Finnish territorial disputes in 1921.",
-        "This completes all 85 gap-list entries (34 sovereign/partially-recognized states plus the Republic of the Congo special case, and 51 territories/dependencies) in alphabetical order as structured in your gap-analysis document. Combined with your existing 164-entry dataset, this closes the full 249-entry Country Profiles page. Let me know if you'd like this exported as a document formatted for direct handoff to your country_profiles.extract.py merge script, or if you'd like the Republic of the Congo (code 178) and Democratic Republic of the Congo (code 180) display-name collision flagged for a separate data-fix ticket."
+        "The Åland Islands have no significant documented history of internal war, genocide, or mass atrocity, having achieved a peacefully negotiated autonomous status under Finnish sovereignty following a League of Nations-mediated resolution of Swedish-Finnish territorial disputes in 1921."
       ],
       "references": [
         "Benjet, C., et al. (2016). The epidemiology of traumatic event exposure worldwide. Psychological Medicine, 46(2), 327–343. https://pmc.ncbi.nlm.nih.gov/articles/PMC4869975/"
@@ -219,7 +219,7 @@
     "name": "Bahrain",
     "overview": {
       "paragraphs": [
-        "Bahrain's collective trauma centers on the 2011 Arab Spring uprising, when predominantly Shi'ite protesters demanding constitutional reform were met with violent suppression, including intervention by Saudi-led Gulf Cooperation Council forces, mass arrests, and continued martial law (Karolak, 2013; Barany, 2013).",
+        "Bahrain's collective trauma centers on the 2011 Arab Spring uprising, when predominantly Shi'ite protesters demanding constitutional reform were met with violent suppression, including intervention by Saudi-led Gulf Cooperation Council forces, mass arrests, and continued martial law (Karolak, 2013).",
         "This unresolved sectarian fracture has deep historical roots reaching back to communal violence in the 1950s, and contemporary Bahrain continues to experience simmering Sunni-Shi'ite tension and periodic unrest, illustrating how a \"successfully repressed\" revolution can generate chronic, unresolved collective trauma rather than closure (Karolak, 2013)."
       ],
       "references": [
@@ -364,7 +364,8 @@
         "Thirty years on, Bosnia's trauma persists through ethnically segregated education systems and genocide denial among segments of the Bosnian Serb population, with cultural memory practices functioning simultaneously as sites of healing and ongoing flashpoints for renewed ethnic tension (Fajic, 2024)."
       ],
       "references": [
-        "International Residual Mechanism for Criminal Tribunals. (n.d.). Srebrenica: Timeline of genocide. https://www.irmct.org/specials/srebrenica/timeline/en/"
+        "International Residual Mechanism for Criminal Tribunals. (n.d.). Srebrenica: Timeline of genocide. https://www.irmct.org/specials/srebrenica/timeline/en/",
+        "Fajic, S. (2024). Cultural memory and trauma: Commemorating the past in post-conflict Bosnia and Herzegovina. Culturalistics: Journal of Cultural, Literary, and Linguistic Studies, 8(1). https://enigma.or.id/index.php/cultural/article/download/62/67"
       ]
     },
     "dashboard_note": null
@@ -480,7 +481,7 @@
     "name": "Cabo Verde",
     "overview": {
       "paragraphs": [
-        "Cabo Verde's historical trauma is rooted in its role as a major transatlantic slave-trading depot under Portuguese colonial rule, alongside recurring devastating droughts and famines throughout the 18th to 20th centuries that killed substantial portions of the population. Regarding collective trauma link to natural disaster, volcanoes has posed existential threat in Fogo Island. That Cape Verde Island has experience recent disastrous volcanic eruptions that led to extensive property damage and displaced over 1,000 residents.",
+        "Cabo Verde's historical trauma is rooted in its role as a major transatlantic slave-trading depot under Portuguese colonial rule, alongside recurring droughts and famines from the 18th through 20th centuries that caused severe population loss. Volcanic activity on Fogo Island has also periodically produced displacement and material loss.",
         "Contemporary Cabo Verde has maintained strong post-independence democratic stability since 1975, with its trauma engagement centering on historical memory of both the slave trade and famine rather than ongoing conflict."
       ],
       "references": [
@@ -506,7 +507,7 @@
     "name": "Cameroon",
     "overview": {
       "paragraphs": [
-        "Cameroon's collective trauma centers on the Anglophone Crisis, a secessionist conflict that erupted in 2016 over perceived marginalization of the country's English-speaking regions, which has killed at least 4,000 civilians and displaced over 700,000 people through both government and separatist violence (Human Rights Watch, 2021; Bang, 2022).",
+        "Cameroon's collective trauma centers on the Anglophone Crisis, a secessionist conflict that erupted in 2016 over perceived marginalization of the country's English-speaking regions, which has killed at least 4,000 civilians and displaced over 700,000 people through both government and separatist violence (Bang & Balgah, 2022).",
         "This conflict compounds with a separate, ongoing Boko Haram insurgency in the Far North region, meaning Cameroon simultaneously manages two distinct, overlapping armed conflicts rooted in colonial-era linguistic partition and regional jihadist spillover, a dual trauma burden rare even among conflict-affected states (Bang, 2022)."
       ],
       "references": [
@@ -544,7 +545,7 @@
     "name": "Central African Republic",
     "overview": {
       "paragraphs": [
-        "The Central African Republic's collective trauma centers on the civil war that erupted in 2013 between Séléka rebel coalitions and Christian anti-Balaka militias, producing sectarian killings, mass displacement exceeding 1.2 million people, and one of the world's most severe ongoing humanitarian crises (Council on Foreign Relations, 2026).",
+        "The Central African Republic's collective trauma centers on the civil war that erupted in 2013 between Séléka rebel coalitions and Christian anti-Balaka militias, producing sectarian killings, mass displacement exceeding 1.2 million people, and one of the world's most severe ongoing humanitarian crises (Froming et al., 2025).",
         "Randomized controlled trials of trauma-focused interventions in this setting have documented significant reductions in mental health symptoms among conflict survivors, though the scarcity of mental health resources continues to leave the vast majority of the trauma-affected population without adequate care over a decade into the crisis (Froming et al., 2025)."
       ],
       "references": [
@@ -735,8 +736,8 @@
     "name": "Cyprus",
     "overview": {
       "paragraphs": [
-        "Cyprus's foundational collective trauma is the 1974 Turkish invasion and subsequent partition of the island, following nearly two decades of intermittent Greek-Turkish Cypriot intercommunal violence, which displaced 170,000 Greek Cypriots and 50,000 Turkish Cypriots and left the island divided to this day (Loizos, 2025).",
-        "Research demonstrates that this trauma persists across both communities more than five decades later, with documented emotional and cognitive changes specifically linked to the 1963 and 1974 wars, and scholars framing \"1974\" as an unresolved cultural trauma actively transmitted through generational memory, oral history, and continued political division (Volkan et al., 2022; Agathangelou, 2002)."
+        "Cyprus's foundational collective trauma is the 1974 Turkish invasion and subsequent partition of the island, following nearly two decades of intermittent Greek-Turkish Cypriot intercommunal violence, which displaced 170,000 Greek Cypriots and 50,000 Turkish Cypriots and left the island divided to this day (Volkan et al., 2022).",
+        "Research demonstrates that this trauma persists across both communities more than five decades later, with documented emotional and cognitive changes specifically linked to the 1963 and 1974 wars, and scholars framing \"1974\" as an unresolved cultural trauma actively transmitted through generational memory, oral history, and continued political division (Volkan et al., 2022)."
       ],
       "references": [
         "Volkan, E., et al. (2022). Undivided trauma in a divided Cyprus: Modified emotional Stroop task findings. Psychological Trauma: Theory, Research, Practice, and Policy, 14(6), 989–997. https://pubmed.ncbi.nlm.nih.gov/31750688/"
@@ -883,7 +884,7 @@
     "name": "Eritrea",
     "overview": {
       "paragraphs": [
-        "Eritrea's foundational collective trauma is its 30-year War of Independence from Ethiopia (1961–1991), one of Africa's longest liberation struggles, which caused tens of thousands of deaths, widespread disability, mass displacement, and a devastating famine that crippled agricultural productivity (Eritrea Begins Its War for Independence, 2021; Eritrean War of Independence, n.d.).",
+        "Eritrea's foundational collective trauma is its 30-year War of Independence from Ethiopia (1961–1991), one of Africa's longest liberation struggles, which caused tens of thousands of deaths, widespread disability, mass displacement, and a devastating famine that crippled agricultural productivity (EBSCO Research Starters, 2021).",
         "This historical liberation trauma has directly shaped Eritrea's subsequent trajectory, as the same wartime mobilization structures gave rise to one of the world's most militarized and authoritarian postwar states, with indefinite national conscription and the 1998–2000 border war with Ethiopia representing an unbroken continuation of this founding conflict's militarized legacy."
       ],
       "references": [
@@ -1248,7 +1249,8 @@
         "Research on earthquake survivors documents substantial rates of PTSD and major depressive disorder years after the disaster, while the humanitarian response itself introduced new trauma vectors, including a cholera outbreak and documented sexual exploitation by aid workers, illustrating how disaster response can compound rather than resolve collective trauma (Pierre-Louis, 2016; Duramy, 2011)."
       ],
       "references": [
-        "Pierre-Louis, M. L. (2016). Investigating psychological trauma among the 2010 Haiti earthquake survivors. Harvard DASH Repository. https://dash.harvard.edu/bitstreams/7312037e-6f51-6bd4-e053-0100007fdf3b/download"
+        "Pierre-Louis, M. L. (2016). Investigating psychological trauma among the 2010 Haiti earthquake survivors. Harvard DASH Repository. https://dash.harvard.edu/bitstreams/7312037e-6f51-6bd4-e053-0100007fdf3b/download",
+        "Duramy, B. F. (2011). Women in the aftermath of the 2010 Haitian earthquake. Emory International Law Review, 25, 1193–1215. https://scholarlycommons.law.emory.edu/eilr/vol25/iss3/6/"
       ]
     },
     "dashboard_note": null
@@ -1320,7 +1322,7 @@
     "name": "India",
     "overview": {
       "paragraphs": [
-        "India's foundational collective trauma is the 1947 Partition, during which the division of British India triggered mass displacement of an estimated 15 million people and communal violence killing between one and two million, fracturing families along religious lines (Kaur, 2023; Qureshi et al., 2023).",
+        "India's foundational collective trauma is the 1947 Partition, during which the division of British India triggered mass displacement of an estimated 15 million people and communal violence killing between one and two million, fracturing families along religious lines (Kaur, 2023).",
         "This trauma continues to shape Indian and Pakistani national identity and politics nearly eight decades later, with researchers documenting intergenerational transmission of Partition trauma among descendants who never directly experienced the event, alongside its continued resonance in periodic communal tensions (Kaur, 2023)."
       ],
       "references": [
@@ -1339,11 +1341,13 @@
     "name": "Indonesia",
     "overview": {
       "paragraphs": [
-        "Indonesia's collective trauma centers on the 1965–1966 anti-communist massacres, during which the military under Suharto killed hundreds of thousands of suspected communists and sympathizers, among the worst mass killings of the 20th century (Oxford Research Encyclopedia, 2016).",
+        "Indonesia's collective trauma centers on the 1965–1966 anti-communist massacres, during which the military under Suharto killed hundreds of thousands of suspected communists and sympathizers, among the worst mass killings of the 20th century (Cribb, 2017).",
         "Six decades later, survivors and their descendants continue to navigate suppressed public memory and social stigmatization, with contemporary literary and cultural works increasingly surfacing this long-silenced trauma as Indonesia's \"Trauma and Transitional Justice\" research initiatives work to document remaining survivor testimony before it is lost (Mayasari-Hoffert, 2025; Inside Indonesia, 2025)."
       ],
       "references": [
-        "Mayasari-Hoffert, S. (2025). Exploring Indonesia's collective trauma in literary narratives of the 1965–66 killings. Journal of Postcolonial Writing. https://www.tandfonline.com/doi/full/10.1080/17449855.2026.2623174"
+        "Mayasari-Hoffert, S. (2025). Exploring Indonesia's collective trauma in literary narratives of the 1965–66 killings. Journal of Postcolonial Writing. https://www.tandfonline.com/doi/full/10.1080/17449855.2026.2623174",
+        "Cribb, R. (2017). New findings on the Indonesian killings of 1965–66. The Journal of Asian Studies, 76(4), 1039–1063. https://doi.org/10.1017/S0021911817000815",
+        "Inside Indonesia. (2025, September 23). Sixty years on from the 1965 Indonesian genocide. Inside Indonesia. https://www.insideindonesia.org/editions/edition-161-jul-sep-2025/sixty-years-on-from-the-1965-indonesian-genocide"
       ]
     },
     "dashboard_note": {
@@ -1359,10 +1363,11 @@
     "overview": {
       "paragraphs": [
         "Iran's collective trauma includes the 1980–1988 Iran-Iraq War, which involved chemical weapons attacks and produced significant psychiatric morbidity among veterans and civilian survivors, particularly women injured by chemical warfare (Mousavi et al., 2021).",
-        "More recently, sudden urban bombing campaigns during regional conflict escalation have created a distinct trauma profile compared to the prolonged Iran-Iraq War, with researchers documenting that early-adulthood exposure to the earlier war continues to shape contemporary Iranian public attitudes toward national defense and security policy (Mohammadi, 2025; Experiencing the Iran-Iraq War, 2021)."
+        "More recently, sudden urban bombing campaigns during regional conflict escalation have created a distinct trauma profile compared to the prolonged Iran-Iraq War, with researchers documenting that early-adulthood exposure to the earlier war continues to shape contemporary Iranian public attitudes toward national defense and security policy (Farzanegan & Gholipour, 2021)."
       ],
       "references": [
-        "Mousavi, B., et al. (2021). Psychiatric disorder and quality of life in female survivors of the Iran-Iraq war. International Journal of Weapons Public Health. https://ijwph.ir/browse.php?a_id=968&sid=1&slc_lang=en&html=1"
+        "Mousavi, B., et al. (2021). Psychiatric disorder and quality of life in female survivors of the Iran-Iraq war. International Journal of Weapons Public Health. https://ijwph.ir/browse.php?a_id=968&sid=1&slc_lang=en&html=1",
+        "Farzanegan, M. R., & Gholipour, H. F. (2021). Growing up in the Iran–Iraq war and preferences for strong defense. Review of Development Economics, 25(4), 1945–1968. https://doi.org/10.1111/rode.12806"
       ]
     },
     "dashboard_note": {
@@ -1381,7 +1386,8 @@
         "The post-2003 sectarian violence and ISIS's genocidal campaign against the Yazidi represent direct continuations of historical ethnic and sectarian fault lines, with survivors showing severe, compounding trauma across multiple genocidal episodes spanning decades, according to longitudinal Kurdistan region mental health research (Mohammed, 2026)."
       ],
       "references": [
-        "Mohammed, I., et al. (2026). A study on long-term trauma-related mental health outcomes among survivors of chemical attacks and genocide in Kurdistan. PMC. https://pmc.ncbi.nlm.nih.gov/articles/PMC12862082/"
+        "Mohammed, I., et al. (2026). A study on long-term trauma-related mental health outcomes among survivors of chemical attacks and genocide in Kurdistan. PMC. https://pmc.ncbi.nlm.nih.gov/articles/PMC12862082/",
+        "Mahmood, H. N., Ahmed, D. R., Neldner, S., et al. (2024). Psychological scars of genocide: A systematic review of post-traumatic outcomes in Kurdish Anfal survivors. Current Psychology, 43, 20383–20393. https://doi.org/10.1007/s12144-024-05863-3"
       ]
     },
     "dashboard_note": null
@@ -1511,8 +1517,8 @@
     "name": "Kenya",
     "overview": {
       "paragraphs": [
-        "Kenya's collective trauma is rooted in British colonial violence during the 1950s Mau Mau uprising, when colonial forces detained hundreds of thousands in camps involving systematic torture, a legacy survivors continue to embody through physical scars and testimony decades later (Miyonga, 2026).",
-        "This colonial-era violence intersects with contemporary trauma through recurring post-election ethnic violence, most severely in 2007–2008, with scholars framing these modern eruptions as continuations of colonial-era ethnic engineering and land dispossession that transitional justice mechanisms have yet to fully address (Sehmi, 2024; Hamer, 2013)."
+        "Kenya's collective trauma is rooted in British colonial violence during the 1950s Mau Mau uprising, when colonial forces detained hundreds of thousands in camps involving systematic torture, a legacy survivors continue to embody through physical scars and testimony decades later.",
+        "This colonial-era violence intersects with contemporary trauma through recurring post-election ethnic violence, most severely in 2007–2008, with scholars framing these modern eruptions as continuations of colonial-era ethnic engineering and land dispossession that transitional justice mechanisms have yet to fully address (Sehmi, 2024)."
       ],
       "references": [
         "Sehmi, A. (2024). Legacies of colonial violence in contemporary transitional justice. International Journal of Transitional Justice, 18(1), 32–54. https://academic.oup.com/ijtj/article/18/1/32/7624695"
@@ -1596,7 +1602,7 @@
     "overview": {
       "paragraphs": [
         "Lebanon's collective trauma is rooted in its 1975–1990 civil war, which killed an estimated 150,000 people through sectarian militia violence, and has been compounded by the 2020 Beirut port explosion and repeated Israeli military conflicts, including intense strikes in 2024.",
-        "Research on Lebanese civil war descendants documents active intergenerational transmission of trauma to children born after the war ended, while contemporary studies of Lebanese youth exposed to the 2021 Beirut clashes and ongoing regional conflict show this trauma transmission continuing into a new generation (El-Khalil, 2025; Kerbage et al., 2024)."
+        "Research on Lebanese civil war descendants documents active intergenerational transmission of trauma to children born after the war ended, while contemporary studies of Lebanese youth exposed to the 2021 Beirut clashes and ongoing regional conflict show this trauma transmission continuing into a new generation (El-Khalil, 2025)."
       ],
       "references": [
         "El-Khalil, C., et al. (2025). Lebanese civil war intergenerational trauma: Modes of transmission. Psychological Trauma: Theory, Research, Practice, and Policy. https://www.ovid.com/journals/pttrpp/fulltext/10.1037/tra0001987"
@@ -1836,7 +1842,7 @@
     "overview": {
       "paragraphs": [
         "Mexico's modern trauma load centers on the ongoing \"war on drugs,\" which has killed nearly 270,000 people and disappeared approximately 60,000 since 2006, with scholars documenting official denial and stigmatization of victims that compounds survivor trauma (Moon, 2020).",
-        "This narco-violence has produced a distinct trauma phenomenology, termed \"narco-trauma\" by researchers, in which chronic exposure to cartel violence, disappearance, and impunity generates trauma patterns comparable to those documented in war and genocide survivor populations (O'Connor, 2014)."
+        "This narco-violence has produced a distinct trauma phenomenology, termed \"narco-trauma\" by researchers, in which chronic exposure to cartel violence, disappearance, and impunity generates trauma patterns comparable to those documented in war and genocide survivor populations."
       ],
       "references": [
         "Moon, C. (2020). Denial and stigmatization in Mexico's \"war on drugs.\" PMC. https://pmc.ncbi.nlm.nih.gov/articles/PMC7613008/"
@@ -1944,7 +1950,7 @@
     "overview": {
       "paragraphs": [
         "Mozambique's collective trauma centers on its 1976–1992 civil war between the Frelimo government and Renamo rebels, which killed approximately one million people and displaced millions more through massacres and destroyed infrastructure.",
-        "Research demonstrates that unresolved legacies of this civil war continue to fuel contemporary local-level family and community conflicts decades after the formal peace agreement, while forced displacement from the war has produced measurable long-term human capital losses still affecting Mozambican communities today (Igreja, 2025; Chiovelli et al., 2021)."
+        "Research demonstrates that unresolved legacies of this civil war continue to fuel contemporary local-level family and community conflicts decades after the formal peace agreement, while forced displacement from the war has produced measurable long-term human capital losses still affecting Mozambican communities today (Igreja, 2025)."
       ],
       "references": [
         "Igreja, V. (2025). A social network analysis of family and community conflicts rooted in Mozambique's civil war legacy. World Development. https://www.sciencedirect.com/science/article/pii/S0305750X25000130"
@@ -2074,7 +2080,7 @@
         "Nigeria's collective trauma did not begin in 1967. Long before the Biafran War, the landmass and peoples now called Nigeria had already absorbed successive waves of conquest and subjugation that established defeat, subjugation, and forced political reordering as recurring features of collective memory. Between 1804 and 1810, Usman dan Fodio's jihad swept through Hausaland, militarily defeating the Hausa kingdoms and subjecting them to Fulani ideological and political rule under the newly founded Sokoto Caliphate, one of the largest empires in African history at the time (Britannica, 2026; Usman dan Fodio, n.d.). A century later, this same region absorbed a second conquest: British colonial forces captured Kano and Sokoto between 1901 and 1903, formally dismantling the Caliphate's sovereignty and folding it into the Protectorate of Northern Nigeria after six years of sustained armed resistance (Colonial Nigeria, n.d.; Dusgate, 2025). Beyond the north, the historical record includes the conquest and fall of the Benin Kingdom and recurring wars among Igbo kingdoms and other ethnic polities, meaning that by the time Nigeria existed as a colonial construct, its constituent peoples had already experienced multiple, distinct historical layers of military defeat, foreign ideological imposition, and loss of self-governance.",
         "The 1967–1970 Nigeria-Biafra War did not introduce trauma into a previously unwounded nation; it exacerbated a collective trauma load that pre-existed the war by more than a century. Pogroms against Igbo civilians, a blockade-induced famine, and eventual military defeat inflicted profound and additional collective trauma on Igbo communities specifically, layering a modern, ethnically-targeted wound atop the older, broader pattern of conquest and subjugation already embedded in the national psyche (Heerten & Moses, 2014; Osisioma, 2025). This is why the Biafran War became a taboo subject in national discourse for decades: it was not an isolated historical rupture but the most recent and most acutely documented instance of a defeat-and-suppression pattern Nigerians had already lived through in earlier form.",
         "This layered history matters clinically, not just historically. As collective trauma research increasingly demonstrates, wars outlive the geography and generation in which they were fought; they persist in memory, identity, family narrative, and national storytelling, and emerging epigenetic research suggests they may also leave biological marks passed across generations through altered gene expression, even absent direct memory of the originating event (Yehuda et al., 2018; Gemmati et al., 2025). For a nation as large and consequential as Nigeria, addressing the emotional aftermath of the civil war cannot be treated as an isolated historical reckoning. It must be understood as one layer within a longer, compounding sequence of collective defeat, dating back through British colonial conquest to the Fulani jihad, each layer reinforcing patterns of distrust, unresolved grief, and fractured national cohesion that later conflicts have only intensified.",
-        "Northern Nigeria's ongoing Boko Haram insurgency represents the newest chapter in this same historical continuum rather than a disconnected contemporary crisis. Researchers note that biomedical PTSD frameworks alone fail to capture the full social and communal dimensions of trauma experienced across the region's overlapping conflicts, precisely because the insurgency unfolds in the same northern territory shaped by both the Sokoto jihad and the British conquest, adding a third major layer of defeat, displacement, and communal rupture to land and peoples already carrying two prior historical wounds (Social Science in Action, 2024; Stellenbosch Institute, 2024)."
+        "Northern Nigeria's ongoing Boko Haram insurgency represents the newest chapter in this same historical continuum rather than a disconnected contemporary crisis. Researchers note that biomedical PTSD frameworks alone fail to capture the full social and communal dimensions of trauma experienced across the region's overlapping conflicts, precisely because the insurgency unfolds in the same northern territory shaped by both the Sokoto jihad and the British conquest, adding a third major layer of defeat, displacement, and communal rupture to land and peoples already carrying two prior historical wounds."
       ],
       "references": [
         "Britannica. (2026). Jihad, Usman dan Fodio. Encyclopaedia Britannica. https://www.britannica.com/place/western-Africa/The-jihad-of-Usman-dan-Fodio",
@@ -2392,7 +2398,7 @@
     "name": "Rwanda",
     "overview": {
       "paragraphs": [
-        "Rwanda's defining collective trauma is the 1994 genocide against the Tutsi, in which extremist Hutu forces killed approximately one million people in just 100 days, one of the most concentrated mass-killing events in modern history (International Center on Memory, Genocide and Human Rights, 2025).",
+        "Rwanda's defining collective trauma is the 1994 genocide against the Tutsi, in which extremist Hutu forces killed approximately one million people in just 100 days, one of the most concentrated mass-killing events in modern history.",
         "Three decades later, qualitative research among youth born after the genocide demonstrates active intergenerational transmission of trauma from surviving parents, with mental health professionals documenting how this transmission occurs even among those with no direct memory of the killings, illustrating a clear historical-to-modern trauma pathway (Kagoyire et al., 2023)."
       ],
       "references": [
@@ -2559,7 +2565,8 @@
         "Contemporary Serbia continues to navigate contested historical memory, with segments of society engaging in genocide denial regarding Srebrenica, reflecting an unresolved perpetrator-side reckoning that complicates regional reconciliation efforts."
       ],
       "references": [
-        "International Residual Mechanism for Criminal Tribunals. (n.d.). Srebrenica: Timeline of genocide. https://www.irmct.org/specials/srebrenica/timeline/en/"
+        "International Residual Mechanism for Criminal Tribunals. (n.d.). Srebrenica: Timeline of genocide. https://www.irmct.org/specials/srebrenica/timeline/en/",
+        "Fajic, S. (2024). Cultural memory and trauma: Commemorating the past in post-conflict Bosnia and Herzegovina. Culturalistics: Journal of Cultural, Literary, and Linguistic Studies, 8(1). https://enigma.or.id/index.php/cultural/article/download/62/67"
       ]
     },
     "dashboard_note": null
@@ -2760,7 +2767,7 @@
     "overview": {
       "paragraphs": [
         "Sudan's collective trauma includes the Darfur genocide beginning in 2003, during which government-backed Janjaweed militias killed an estimated 200,000 people and displaced millions, alongside decades of north-south civil war preceding South Sudan's independence.",
-        "This genocidal legacy has directly reignited in the 2023 civil war between the Sudanese military and Rapid Support Forces, a paramilitary group with direct organizational roots in the Janjaweed, illustrating an unbroken continuity between historical genocide perpetrators and present-day mass atrocity (Elshareif, 2023; Meffert et al., 2008)."
+        "This genocidal legacy has directly reignited in the 2023 civil war between the Sudanese military and Rapid Support Forces, a paramilitary group with direct organizational roots in the Janjaweed, illustrating an unbroken continuity between historical genocide perpetrators and present-day mass atrocity (Elshareif, 2023)."
       ],
       "references": [
         "Elshareif, H. (2023). War and genocide in Darfur and its impact on Darfur society. University of San Francisco Repository. https://repository.usfca.edu/cgi/viewcontent.cgi?article=2665&context=thes"
@@ -2822,7 +2829,7 @@
     "overview": {
       "paragraphs": [
         "Syria's collective trauma centers on the civil war beginning in 2011, which has killed several hundred thousand people and displaced over half the pre-war population, involving chemical weapons attacks, siege warfare, and mass detention.",
-        "Research on Syrian war trauma survivors documents extraordinarily high psychiatric morbidity, with over 70% of Syrian children reported to exhibit \"toxic stress\" and roughly half of refugees developing severe mental health issues, while persistent social stigma around trauma continues to suppress help-seeking even amid this scale of suffering (Leiden University, 2018; Almoshmosh et al., 2016)."
+        "Research on Syrian war trauma survivors documents extraordinarily high psychiatric morbidity, with over 70% of Syrian children reported to exhibit \"toxic stress\" and roughly half of refugees developing severe mental health issues, while persistent social stigma around trauma continues to suppress help-seeking even amid this scale of suffering (Almoshmosh et al., 2016)."
       ],
       "references": [
         "Almoshmosh, N., et al. (2016). The role of war trauma survivors in managing their own mental health challenges: The case of Syria. PMC. https://pmc.ncbi.nlm.nih.gov/articles/PMC4849190/"
@@ -3254,8 +3261,8 @@
     "name": "Western Sahara",
     "overview": {
       "paragraphs": [
-        "Western Sahara's collective trauma centers on the 1975 invasion by Morocco and Mauritania following Spanish colonial withdrawal, which displaced over half the Sahrawi population and triggered a 16-year war (1975–1991) between Morocco and the Polisario Front that remains formally unresolved (Sahrawi Refugees and Western Sahara, 2025; Western Sahara conflict, n.d.).",
-        "Nearly 170,000 Sahrawi refugees continue to live in Algerian-administered camps five decades later, with documented enforced disappearances of over 500 Sahrawis still unaccounted for, and researchers describing an entire generation that has \"never known life outside the camps,\" representing one of the world's most protracted and neglected displacement traumas (Harvard Human Rights Program, 2025; ICRC Casebook, n.d.)."
+        "Western Sahara's collective trauma centers on the 1975 invasion by Morocco and Mauritania following Spanish colonial withdrawal, which displaced over half the Sahrawi population and triggered a 16-year war (1975–1991) between Morocco and the Polisario Front that remains formally unresolved (Harvard Law School Human Rights Program, 2025).",
+        "Nearly 170,000 Sahrawi refugees continue to live in Algerian-administered camps five decades later, with documented enforced disappearances of over 500 Sahrawis still unaccounted for, and researchers describing an entire generation that has \"never known life outside the camps,\" representing one of the world's most protracted and neglected displacement traumas (Harvard Law School Human Rights Program, 2025)."
       ],
       "references": [
         "Harvard Law School Human Rights Program. (2025). Fifty years in exile: Human rights and the forgotten crisis in Western Sahara. https://hrp.law.harvard.edu/fifty-years-in-exile-human-rights-and-the-forgotten-crisis-in-western-sahara/"

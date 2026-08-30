@@ -13,6 +13,15 @@ export const PRIVACY_POLICY_EFFECTIVE_DATE = 'July 30, 2026';
  * source document: an explicit note on Google sign-in's data direction
  * (marked below), added to match this site's actual implementation -
  * see the surrounding chat for why.
+ *
+ * Sections 6-10 (general site use, report submissions, donations,
+ * account termination, liability/governing law) are DRAFT text added
+ * separately from the original document, covering site-wide terms of
+ * service that weren't part of the original certification-platform-
+ * scoped policy. Marked in the rendered page itself as not yet
+ * attorney-reviewed - see the .about-draft-notice banner right before
+ * section 6 below. Do not remove that notice without an actual legal
+ * review of sections 6-10's content.
  */
 export default function PrivacyPolicyContent() {
   return (
@@ -160,6 +169,68 @@ export default function PrivacyPolicyContent() {
       <h4 className="about-subsection-title">5. AI &amp; Large Language Model Use Policy</h4>
       <p>Unless expressly authorized in writing by ITTI, no person or organization may use ITTI materials to train or fine-tune artificial intelligence models; create derivative AI-generated educational content; build competing certification programs; develop automated tutoring systems using ITTI content; scrape, mine, or systematically extract ITTI materials; or reproduce ITTI methodologies through AI-assisted tools.</p>
       <p>Participants may use publicly available AI tools for personal study assistance but may not upload substantial portions of ITTI's proprietary materials, examinations, manuals, toolkits, or assessment content into AI platforms if doing so would reproduce, distribute, or compromise ITTI's intellectual property.</p>
+
+      <div className="about-draft-notice">
+        Sections 6-10 below are draft terms covering site use beyond the certification platform (report
+        submissions, donations, account termination, liability, and governing law). They have not yet been
+        reviewed by an attorney and should be treated as a starting point, not final legal text.
+      </div>
+
+      <h4 className="about-subsection-title">6. General Site Use</h4>
+      <p>
+        Beyond the certification platform covered above, ittiglobal.org includes a public Trauma Observatory,
+        published research reports, country profiles, and a donation system. By using any part of the site you
+        agree not to: interfere with or disrupt the site or its underlying infrastructure; attempt to gain
+        unauthorized access to any account, system, or data; upload malicious code; impersonate any person or
+        organization; or use the site for any unlawful purpose. ITTI may remove content or restrict access for
+        violations of this policy.
+      </p>
+
+      <h4 className="about-subsection-title">7. Report Submissions &amp; User-Submitted Content</h4>
+      <p>
+        Publishers may submit reports, research, and related files for peer review and, if approved, publication
+        on the public Reports page. By submitting a report, you represent that you own or have the necessary
+        rights to the content you're submitting, and you grant ITTI a non-exclusive, worldwide license to host,
+        display, and distribute that content on ittiglobal.org for as long as it remains published. You retain
+        ownership of your own work; ITTI does not claim ownership of a report by publishing it.
+      </p>
+      <p>
+        A published report may be removed at the uploader's request (subject to reviewer approval, per the
+        deletion-request process described in the site's own documentation) or by ITTI directly for policy
+        violations. ITTI is not responsible for the accuracy, completeness, or conclusions of any user-submitted
+        report; published reports reflect their authors' views, not necessarily ITTI's own.
+      </p>
+
+      <h4 className="about-subsection-title">8. Donations &amp; Payments</h4>
+      <p>
+        Donations made through ittiglobal.org are processed by a third-party payment processor; ITTI does not
+        store your full payment card details (see the Payment Information section above). Donations are
+        generally non-refundable except where required by law or at ITTI's sole discretion. Contact
+        support@ittiglobal.org for questions about a specific donation or a refund request.
+      </p>
+
+      <h4 className="about-subsection-title">9. Account Termination</h4>
+      <p>
+        In addition to ITTI-initiated suspension described above, you may close your own account at any time
+        from your account settings. Closing your account deactivates it but does not automatically remove
+        content you've published (e.g. a live report) - see Section 7 above for how published content is
+        removed. Some information may be retained after account closure where required for legal, accounting,
+        or security purposes.
+      </p>
+
+      <h4 className="about-subsection-title">10. Disclaimers, Liability &amp; Governing Law</h4>
+      <p>
+        The site and its content are provided "as is" without warranties of any kind, express or implied,
+        including but not limited to warranties of accuracy, merchantability, or fitness for a particular
+        purpose. To the fullest extent permitted by law, ITTI is not liable for any indirect, incidental, or
+        consequential damages arising from your use of the site.
+      </p>
+      <p>
+        These terms are governed by the laws of [jurisdiction to be specified], without regard to conflict-of-law
+        principles. ITTI may update these terms from time to time; continued use of the site after an update
+        constitutes acceptance of the revised terms. Material changes will be reflected by an updated effective
+        date at the top of this page.
+      </p>
     </>
   );
 }

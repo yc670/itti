@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { csrfFetch } from '../api.js';
 import { FELLOW_LEVELS } from '../data/fellowship.js';
 
 const EMPTY_FORM = { name: '', level: FELLOW_LEVELS[0]?.code || '', bio: '' };
@@ -75,9 +76,8 @@ export default function FellowsControl() {
     const url = isEdit ? `/api/fellows/${selectedId}` : '/api/fellows';
 
     try {
-      const res = await fetch(url, {
+      const res = await csrfFetch(url, {
         method: isEdit ? 'PUT' : 'POST',
-        credentials: 'include',
         body: formData,
       });
       const data = await res.json().catch(() => ({}));
@@ -100,7 +100,7 @@ export default function FellowsControl() {
     setSubmitting(true);
     setStatus(null);
     try {
-      const res = await fetch(`/api/fellows/${selectedId}`, { method: 'DELETE', credentials: 'include' });
+      const res = await csrfFetch(`/api/fellows/${selectedId}`, { method: 'DELETE' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.description || data.error || 'Delete failed');
       await loadFellows();

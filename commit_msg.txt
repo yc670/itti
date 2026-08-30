@@ -1,31 +1,108 @@
-<<<<<<< HEAD
-commit 7bd1ce6
-Restore S3 storage config for uploads dropped in later merges
+Add reviewer role and publisher-report deletion workflow (request →
+reviewer approval → admin repost/permanent-delete)
 
-app.yaml and docs/DEPLOYMENT.md lost the STORAGE_BACKEND=s3 setup
-from 86f9450 ("Fix fellow/report images crashing with 500 in
-production") somewhere across the report_page/peer_review and
-login_brevo merges - likely just not carried forward by whoever
-resolved those unrelated conflicts in the same files. The code-level
-half of that fix (storage.py's portable relative paths + clean 404
-on a missing file, migrate_absolute_storage_paths.py) was untouched
-and is still present.
+server/models/user.py                                        [M]
+    New ROLE_REVIEWER, added to VALID_ROLES - sits between
+    publisher and admin. promote_user.py and the admin role-update
+    route already work generically off VALID_ROLES.
 
-Without this, production has no STORAGE_BACKEND set, so uploads
-still default to local disk - which App Platform wipes on every
-redeploy (deploy_on_push: true) - meaning any fellow photo or report
-file/image uploaded through the live site will still fail to load
-once the next deploy happens, even though it now 404s cleanly
-instead of 500ing.
+server/models/report.py                                      [M]
+    New REVIEW_STATUS_DELETION_REQUESTED. New columns:
+    pending_deletion_reason, pending_deletion_requested_at,
+    deleted_via ("deletion_review" | "admin" - tracks how a
+    published report was soft-deleted). New functions:
+    request_report_deletion(), cancel_deletion_request(),
+    get_deletion_requested_reports(), get_deleted_reports() (admin
+    view - includes both deletion paths). delete_report() now
+    accepts via= and resets review_status back to "published" when
+    approved through review (same state an admin's direct delete
+    leaves a report in, so "repost" is correct either way).
 
-- app.yaml: re-add STORAGE_BACKEND, STORAGE_S3_BUCKET,
-  STORAGE_S3_ENDPOINT_URL, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
-  env vars for the backend service, with setup guidance in comments
-- docs/DEPLOYMENT.md: re-add the "Persistent storage for uploads"
-  section (bucket setup, env vars, and what to do about images
-  already broken before this is configured), plus a pointer to
-  migrate_absolute_storage_paths.py for pre-existing bad rows
-=======
-Fix GET /api/reports 500: repair drifted reports schema, stop create_all() from masking future drift
-Rewrite fix_reports_schema.py to be generic, not reports-only
->>>>>>> 8f671229e15aada48f5687f4d21265f7ee9304b1
+server/models/report_review.py                                [M]
+    New record_deletion_review() - a SINGLE reviewer/admin decision,
+    final immediately either way (not vote-counted like the publish
+    workflow). Self-review blocked, same rule as record_review().
+
+server/models/notification.py                                 [M]
+    Two new notification types for the uploader when their deletion
+    request is approved/denied.
+
+server/validation.py                                           [M]
+    New deletion_reason check - presence required, length-capped.
+
+server/migrations/versions/c1a9ddadbaec_...py                  [A]
+    Adds the three new Report columns.
+
+server/app.py                                                  [M]
+    - _can_view_report: a deletion_requested report is now public,
+      same as published (it stays visible throughout review).
+    - DELETE /api/reports/<id>: publisher/reviewer deleting their
+      own PUBLISHED report now 409s (use request-deletion instead);
+      still instant for anything not yet published, and always
+      instant for admin (deleted_via="admin" recorded).
+    - New: POST .../request-deletion, POST .../deletion-review,
+      GET /api/reports/deletion-requests, GET /api/reports/deleted,
+      POST .../repost.
+    - Reviewer added to every report-specific @roles_required(
+      "publisher", "admin") route (view/upload/vote on new
+      submissions) - reviewer inherits publisher's abilities, per
+      "above publisher, below admin."
+
+client/src/components/DeleteReportModal.jsx                    [A]
+    Shared modal used by every report-deleting page. Branches on
+    review_status: published needs a typed reason and calls
+    request-deletion; anything else deletes instantly.
+
+client/src/components/DeletionReviewPanel.jsx                  [A]
+    Approve/deny panel for a single deletion request - no vote
+    count, unlike PeerReviewPanel.
+
+client/src/components/DeletedReportsControl.jsx                [A]
+    Small Control-tab panel linking to the new admin page.
+
+client/src/pages/PeerReviewDeletions.jsx                       [A]
+    New page at /peer-review/deletions - reviewer/admin only (not
+    publisher). Third tab alongside Awaiting Review / My
+    Submissions.
+
+client/src/pages/DeletedReportsPage.jsx                        [A]
+    New admin-only page at /admin/deleted-reports - categorized
+    like the public Reports page, checkbox multi-select, bulk
+    repost or bulk permanent-delete (confirmed via modal).
+
+client/src/pages/Reports.jsx                                   [M]
+client/src/pages/PeerReviewMine.jsx                             [M]
+client/src/pages/ReportView.jsx                                [M]
+    All three: delete now opens DeleteReportModal instead of
+    deleting directly; a deletion_requested report shows a status
+    banner. ReportView.jsx's canManage also fixed to include
+    reviewer (previously publisher-only).
+
+client/src/components/ReportCard.jsx                           [M]
+    onDelete now passes the full report object instead of just its
+    id, so callers can branch on review_status.
+
+client/src/pages/PeerReview.jsx                                 [M]
+client/src/components/ControlPanel.jsx                          [M]
+client/src/components/AccessLevelPanel.jsx                       [M]
+    Nav tab / panel / role-dropdown wiring for the above.
+
+client/src/api.js                                                [M]
+    requestReportDeletion, reviewDeletionRequest,
+    fetchDeletionRequestedReports, fetchDeletedReportsAdmin,
+    repostReport, hardDeleteReport.
+
+client/src/App.jsx                                                [M]
+client/src/styles/App.css                                         [M]
+client/src/styles/Control.css                                     [M]
+docs/ACCESS_LEVELS.md                                              [M]
+    Routes, shared CSS (.page-back-link, .deletion-requested-banner,
+    modal textarea styling), and the new tier/workflow documented.
+
+Verified: full end-to-end regression (publish -> deletion request
+-> stays public -> reviewer queue -> approve -> hidden -> admin's
+categorized deleted-reports page -> repost -> hard delete) passed
+against a freshly-migrated database; clean vite build; zero
+conflict markers after merging onto four intervening upstream
+commits (schema-drift fix, app.db untracking, gate-screen
+refactor, Reveal-wrapper back-link fix).

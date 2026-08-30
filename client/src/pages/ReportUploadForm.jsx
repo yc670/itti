@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   checkReportTitle, checkReportDescription, checkReportCategory, checkReportCombinedSize,
   MAX_REPORT_DESCRIPTION_LENGTH, MAX_REPORT_COMBINED_BYTES,
 } from '../utils/formValidation.js';
 import { REPORT_CATEGORIES, DEFAULT_REPORT_CATEGORY } from '../constants/reportCategories.js';
+import { useAuth } from '../context/AuthContext.jsx';
+import ReportPreviewCard from '../components/ReportPreviewCard.jsx';
+import { csrfFetch } from '../api.js';
 
 /**
  * Publisher/admin-only upload form for the Reports page. The actual
@@ -14,15 +17,32 @@ import { REPORT_CATEGORIES, DEFAULT_REPORT_CATEGORY } from '../constants/reportC
  * whether to show it at all.
  */
 export default function ReportUploadForm({ onUploaded, onCancel }) {
+  const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState(DEFAULT_REPORT_CATEGORY);
   const [file, setFile] = useState(null);
   const [image, setImage] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [status, setStatus] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const combinedBytes = (file?.size || 0) + (image?.size || 0);
+
+  // Object URLs need explicit cleanup - revoke the previous one
+  // whenever `image` changes (including to null, on unmount) so
+  // swapping the cover image a few times while filling out the form
+  // doesn't leak blob URLs. This is what makes the preview's thumbnail
+  // update live the instant a new cover image is chosen.
+  useEffect(() => {
+    if (!image) {
+      setImagePreviewUrl(null);
+      return undefined;
+    }
+    const url = URL.createObjectURL(image);
+    setImagePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [image]);
 
   function validate() {
     const errors = {};
@@ -53,9 +73,8 @@ export default function ReportUploadForm({ onUploaded, onCancel }) {
     if (image) formData.append('image', image);
 
     try {
-      const res = await fetch('/api/reports', {
+      const res = await csrfFetch('/api/reports', {
         method: 'POST',
-        credentials: 'include',
         body: formData,
       });
       const data = await res.json().catch(() => ({}));
@@ -153,6 +172,20 @@ export default function ReportUploadForm({ onUploaded, onCancel }) {
       )}
 
       {status && <p className={`report-upload-status report-upload-status--${status.type}`}>{status.message}</p>}
+
+      <div className="report-upload-preview-section">
+        <h3 className="report-upload-preview-title">Preview: how this will look once approved</h3>
+        <p className="report-upload-preview-hint">
+          This is a live preview of the report panel that will appear once this report clears peer review.
+        </p>
+        <ReportPreviewCard
+          title={title}
+          description={description}
+          authorName={user?.name}
+          categoryLabel={category}
+          imageUrl={imagePreviewUrl}
+        />
+      </div>
 
       <div className="report-upload-actions">
         <button type="submit" className="btn btn-primary" disabled={submitting}>
