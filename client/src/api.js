@@ -29,12 +29,26 @@ function readCsrfToken() {
  * thing" reasoning.
  */
 export function csrfFetch(path, options = {}) {
+  return csrfFetchAttempt(path, options, /* allowRetry */ true);
+}
+
+async function csrfFetchAttempt(path, options, allowRetry) {
   const method = (options.method || 'GET').toUpperCase();
+  const isUnsafe = !['GET', 'HEAD', 'OPTIONS'].includes(method);
   const headers = { ...options.headers };
-  if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+  if (isUnsafe) {
     headers['X-CSRF-Token'] = readCsrfToken() || '';
   }
-  return fetch(path, { ...options, method, headers, credentials: 'include' });
+  const res = await fetch(path, { ...options, method, headers, credentials: 'include' });
+
+  if (isUnsafe && allowRetry && res.status === 403) {
+    const body = await res.clone().json().catch(() => null);
+    if (body && body.error === 'csrf_failed') {
+      await fetch('/api/csrf-token', { credentials: 'include', cache: 'no-store' }).catch(() => {});
+      return csrfFetchAttempt(path, options, /* allowRetry */ false);
+    }
+  }
+  return res;
 }
 
 async function getJson(path) {
