@@ -1,0 +1,49 @@
+.events-page {
+  flex: 1;
+  min-height: 0;
+  background: var(--bg-deep);
+  color: var(--text-hi);
+  padding: 64px 32px 80px;
+}
+
+.events-intro {
+  max-width: 640px;
+  margin: 0 auto 32px;
+  text-align: center;
+}
+
+.events-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--cyan);
+  margin: 0 0 10px 0;
+}
+
+.events-heading {
+  font-size: 32px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-hi);
+}
+
+.events-flyer-link {
+  display: block;
+  max-width: 640px;
+  margin: 0 auto;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  cursor: zoom-in;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.events-flyer-link:hover {
+  border-color: var(--cyan);
+  transform: translateY(-2px);
+}
+
+.events-flyer-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
